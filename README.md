@@ -28,9 +28,9 @@ Se encarga de:
 
 * Recibir las solicitudes.
 * Obtener parámetros y datos del request.
-* Validar los datos recibidos.
 * Llamar al Service correspondiente.
-* Devolver la respuesta HTTP.
+* Devolver la respuesta HTTP exitosas.
+* Enviar los errores mediante next(error) al middleware global.
 
 El Controller no contiene consultas directas a MongoDB ni utiliza mongoose para acceder a la base de datos.
 
@@ -38,16 +38,21 @@ El Controller no contiene consultas directas a MongoDB ni utiliza mongoose para 
 
 Contiene la lógica de negocio de la aplicación.
 
-Por ejemplo:
+Se encarga, entre otras cosas, de:
 
 * Aplicar reglas de negocio.
 * Definir valores por defecto.
 * Procesar los datos antes de enviarlos al Repository.
+* Detectar errores propios del dominio.
 * Coordinar la generación de datos mock.
 * Coordinar la carga de datos de prueba.
 
+En este proyecto, el Service:
 
-En este proyecto, el Service asigna el rol `USER` por defecto al crear un usuario y establece el estado `AVAILABLE` al crear un producto.
+- Asigna el rol USER por defecto al crear un usuario.
+- Establece el estado AVAILABLE al crear un producto.
+- Detecta cuando un usuario o producto no existe.
+- Gestiona errores relacionados con la carga de datos mock.
 
 ### Repository
 
@@ -95,12 +100,25 @@ src/
 │   ├── product.controller.js
 │   |── user.controller.js
 |   └── mock.controller.js
+|   
+├── errors/
+|   ├── custom.error.js
+|   ├── error.dictionary.js
+|
+├── middlewares/
+|   ├── error.middleware.js
 │
 ├── models/
 │   ├── Product.js
 │   |── User.js
 |   |── Order.js
 |   └── Delivery.js
+|
+├── mock/
+|   ├── user.mock.js
+|   ├── driver.mock.js
+|   ├── order.mock.js
+|   └── delivery.mock.js
 │
 ├── repositories/
 │   ├── product.repository.js
@@ -191,10 +209,10 @@ Ejemplo:
 
 ```json
 {
-  "name": "Auriculares Bluetooth",
-  "description": "Auriculares inalámbricos para uso diario",
-  "price": 25000,
-  "stock": 10
+        "name": "Auriculares Bluetooth",
+        "description": "Auriculares inalámbricos para uso diario",
+        "price": 25000,
+        "stock": 10
 }
 ```
 
@@ -222,8 +240,8 @@ Ejemplo:
 
 ```json
 {
-  "name": "Nicolás",
-  "email": "nicolas@example.com"
+        "name": "Nicolás",
+        "email": "nicolas@example.com"
 }
 ```
 
@@ -252,16 +270,16 @@ Genera la cantidad de usuarios indicada mediante qty.
 Ejemplo:
 
 [
-  {
-    "name": "Ana Pérez",
-    "email": "ana.pérez.12345@test.com",
-    "role": "USER"
-  },
-  {
-    "name": "Luis Gómez",
-    "email": "luis.gómez.67890@test.com",
-    "role": "USER"
-  }
+        {
+        "name": "Ana Pérez",
+        "email": "ana.pérez.12345@test.com",
+        "role": "USER"
+        },
+        {
+        "name": "Luis Gómez",
+        "email": "luis.gómez.67890@test.com",
+        "role": "USER"
+        }
 ]
 
 Generar repartidores
@@ -339,26 +357,23 @@ A diferencia de los endpoints GET de mocking, el endpoint POST /api/mocks/seed s
 
 Ejemplo:
 
-
-
-
 Respuesta esperada:
 
 {
-  "message": "Datos de prueba cargados correctamente",
-  "cantidad": 2,
-  "data": {
-    "users": [],
-    "drivers": [],
-    "products": [],
-    "orders": [],
-    "deliveries": []
-  }
+        "message": "Datos de prueba cargados correctamente",
+        "cantidad": 2,
+        "data": {
+        "users": [],
+        "drivers": [],
+        "products": [],
+        "orders": [],
+        "deliveries": []
+        }
 }
 
 Los arrays contienen los registros realmente creados en MongoDB.
 
-Validación del parámetro qty
+## Validación del parámetro qty
 
 Los endpoints de mocking validan el parámetro qty.
 
@@ -373,8 +388,180 @@ GET /api/mocks/users?qty=-2
 devuelve un error 400 Bad Request:
 
 {
-  "message": "qty debe ser un número entero mayor que 0"
+        "status": "error",
+        "code": "INVALID_MOCK_QUANTITY",
+        "message": "qty debe ser un número entero mayor que 0"
 }
+
+## Manejo profesional de errores
+
+El proyecto cuenta con un sistema centralizado de manejo de errores mediante un middleware global.
+
+Los errores son detectados en la capa correspondiente y enviados mediante next(error) hasta el middleware de errores.
+
+El flujo es:
+
+Controller
+    ↓
+Service
+    ↓
+CustomError
+    ↓
+Error Middleware
+    ↓
+Respuesta HTTP
+
+El middleware se encuentra en: src/middlewares/error.middleware.js
+
+## Estructura de las respuestas de error
+
+Todas las respuestas de error utilizan una estructura uniforme:
+
+{
+        "status": "error",
+        "code": "CODIGO_DEL_ERROR",
+        "message": "Descripción del error"
+}
+
+Esto permite que el cliente de la API pueda interpretar los errores de manera consistente.
+
+## Errores de dominio
+
+Los errores específicos de la aplicación se encuentran centralizados en: src/errors/error.dictionary.js
+
+Los errores personalizados utilizan: src/errors/custom.error.js
+
+Errores definidos:
+
+Código                  HTTP            Descripcion
+
+USER_NOT_FOUND          404           Usuario no encontrado
+
+PRODUCT_NOT_FOUND       404           Producto no encontrado
+
+ORDER_NOT_FOUND         404           Pedido no encontrado
+
+DELIVERY_NOT_FOUND      404           Entrega no encontrada
+
+INVALID_MOCK_QUANTITY   400           Cantidad de mocks inválida
+
+INVALID_DATA            400           Datos enviados no válidos
+
+MOCK_SEED_ERROR         500           Error al cargar datos de prueba
+
+## Errores de Mongoose
+
+El middleware también transforma determinados errores de Mongoose en respuestas uniformes.
+
+Se manejan: 
+
+- ValidationError: datos que no cumplen las validaciones del modelo.
+- CastError: identificadores o datos con formato inválido.
+- E11000: intento de insertar un dato duplicado.
+
+Estos errores se responden como:
+
+{
+        "status": "error",
+        "code": "INVALID_DATA",
+        "message": "Los datos enviados no son válidos"
+}
+
+Ruta inexistente
+
+Las rutas que no existen también utilizan el sistema centralizado de errores.
+
+Por ejemplo:
+
+GET /api/esto-no-existe
+
+devuelve:
+
+{
+        "status": "error",
+        "code": "ROUTE_NOT_FOUND",
+        "message": "Ruta no encontrada"
+}
+
+con HTTP 404
+
+Pruebas de errores
+
+Usuario inexistente
+
+GET /api/users/000000000000000000000000
+
+respuesta:
+
+{
+        "status": "error",
+        "code": "USER_NOT_FOUND",
+        "message": "Usuario no encontrado"
+}
+
+Producto inexistente
+
+GET /api/products/000000000000000000000000
+
+respuesta:
+
+{
+        "status": "error",
+        "code": "PRODUCT_NOT_FOUND",
+        "message": "Producto no encontrado"
+}
+
+ID inválido
+
+GET /api/users/123
+
+respuesta:
+
+{
+        "status": "error",
+        "code": "INVALID_DATA",
+        "message": "Los datos enviados no son válidos"
+}
+
+Cantidad de mocks inválida
+
+GET /api/mocks/users?qty=-5
+
+respuesta:
+
+{
+        "status": "error",
+        "code": "INVALID_MOCK_QUANTITY",
+        "message": "La cantidad de mocks debe ser un número entero mayor que 0"
+}
+
+Error durante el seed
+
+Si MongoDB no está disponible y se ejecuta:
+
+POST /api/mocks/seed?qty=2
+
+el error se transforma en:
+
+{
+        "status": "error",
+        "code": "MOCK_SEED_ERROR",
+        "message": "No se pudieron cargar los datos de prueba"
+}
+
+Datos duplicados
+
+Si se intenta crear un usuario utilizando un email que ya existe, MongoDB genera un error E11000.
+
+El middleware lo transforma en:
+
+{
+        "status": "error",
+        "code": "INVALID_DATA",
+        "message": "Los datos enviados no son válidos"
+}
+
+De esta forma, los errores no se manejan directamente en las rutas y las respuestas mantienen un formato consistente en toda la API.
 
 ## Constantes
 
@@ -472,4 +659,20 @@ MongoDB
 
 Cada capa tiene una responsabilidad específica, evitando mezclar lógica HTTP, lógica de negocio y acceso a datos.
 
+Flujo de manejo de errores
 
+Cuando ocurre un error:
+
+Petición HTTP
+        ↓
+Controller
+        ↓
+Service
+        ↓
+CustomError / Error de Mongoose
+        ↓
+Error Middleware
+        ↓
+Respuesta HTTP uniforme
+
+Cada capa tiene una responsabilidad específica, evitando mezclar lógica HTTP, lógica de negocio, acceso a datos y manejo de errores.

@@ -1,47 +1,35 @@
 const productService = require("../services/product.service");
 
 class ProductController {
-    async getAll(req, res) {
+    async getAll(req, res, next) {
         try {
-        const products = await productService.getAll();
+            const products = await productService.getAll();
 
-        return res.status(200).json(products);
+            return res.status(200).json(products);
         } catch (error) {
-        return res.status(500).json({
-            message: "Error al obtener los productos"
-        });
+            return next(error);
         }
     }
 
-    async getById(req, res) {
+    async getById(req, res, next) {
         try {
-        const { id } = req.params;
+            const { id } = req.params;
 
-        const product = await productService.getById(id);
+            const product = await productService.getById(id);
 
-        if (!product) {
-            return res.status(404).json({
-            message: "Producto no encontrado"
-            });
-        }
-
-        return res.status(200).json(product);
+            return res.status(200).json(product);
         } catch (error) {
-        return res.status(500).json({
-            message: "Error al obtener el producto"
-        });
+            return next(error);
         }
     }
 
-    async create(req, res) {
+    async create(req, res, next) {
         try {
-        const product = await productService.create(req.body);
+            const product = await productService.create(req.body);
 
-        return res.status(201).json(product);
+            return res.status(201).json(product);
         } catch (error) {
-        return res.status(400).json({
-            message: "Error al crear el producto"
-        });
+            return next(error);
         }
     }
 }

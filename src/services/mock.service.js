@@ -5,6 +5,8 @@ const { generateDrivers } = require("../mock/driver.mock");
 const { generateOrders } = require("../mock/order.mock");
 const { generateDeliveries } = require("../mock/delivery.mock");
 const { PRODUCT_STATUS } = require("../constants");
+const CustomError = require("../errors/custom.error");
+const ERROR_DICTIONARY = require("../errors/error.dictionary");
 
 class MockService {
     generateUsers(qty = 1) {
@@ -45,52 +47,62 @@ class MockService {
     }
 
     async seed(qty = 1) {
-        const users = generateUsers(qty);
-        const drivers = generateDrivers(qty);
+        try {
+            const users = generateUsers(qty);
+            const drivers = generateDrivers(qty);
 
-        const createdUsers = await mockRepository.createUsers(users);
-        const createdDrivers = await mockRepository.createUsers(drivers);
+            const createdUsers = await mockRepository.createUsers(users);
+            const createdDrivers = await mockRepository.createUsers(drivers);
 
-        const products = await mockRepository.createProducts(
-            Array.from({ length: qty }, (_, index) => ({
-                name: `Producto Mock ${index + 1}`,
-                description: `Producto generado para pruebas ${index + 1}`,
-                price: 10000,
-                stock: 10,
-                status: PRODUCT_STATUS.AVAILABLE
-            }))
-        );
+            const products = await mockRepository.createProducts(
+                Array.from({ length: qty }, (_, index) => ({
+                    name: `Producto Mock ${index + 1}`,
+                    description: `Producto generado para pruebas ${index + 1}`,
+                    price: 10000,
+                    stock: 10,
+                    status: PRODUCT_STATUS.AVAILABLE
+                }))
+            );
 
-        const userIds = createdUsers.map((user) => user._id);
-        const productIds = products.map((product) => product._id);
-        const driverIds = createdDrivers.map((driver) => driver._id);
+            const userIds = createdUsers.map((user) => user._id);
+            const productIds = products.map((product) => product._id);
+            const driverIds = createdDrivers.map((driver) => driver._id);
 
-        const orders = generateOrders({
-            qty,
-            userIds,
-            productIds
-        });
+            const orders = generateOrders({
+                qty,
+                userIds,
+                productIds
+            });
 
-        const createdOrders = await mockRepository.createOrders(orders);
+            const createdOrders = await mockRepository.createOrders(orders);
 
-        const orderIds = createdOrders.map((order) => order._id);
+            const orderIds = createdOrders.map((order) => order._id);
 
-        const deliveries = generateDeliveries({
-            qty,
-            orderIds,
-            driverIds
-        });
+            const deliveries = generateDeliveries({
+                qty,
+                orderIds,
+                driverIds
+            });
 
-        const createdDeliveries =
-            await mockRepository.createDeliveries(deliveries);
+            const createdDeliveries =
+                await mockRepository.createDeliveries(deliveries);
 
-        return {
-            users: createdUsers,
-            drivers: createdDrivers,
-            products,
-            orders: createdOrders,
-            deliveries: createdDeliveries
-        };
+            return {
+                users: createdUsers,
+                drivers: createdDrivers,
+                products,
+                orders: createdOrders,
+                deliveries: createdDeliveries
+            };
+        } catch (error) {
+            const seedError = ERROR_DICTIONARY.MOCK_SEED_ERROR;
+
+            throw new CustomError(
+                seedError.message,
+                "MOCK_SEED_ERROR",
+                seedError.statusCode
+            );
+        }
     }
 }
 

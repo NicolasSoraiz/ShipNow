@@ -1,73 +1,69 @@
 const mockService = require("../services/mock.service");
+const CustomError = require("../errors/custom.error");
+const ERROR_DICTIONARY = require("../errors/error.dictionary");
 
 const validateQty = (value) => {
     const qty = Number(value);
 
     if (!Number.isInteger(qty) || qty <= 0) {
-        throw new Error("qty debe ser un número entero mayor que 0");
+        const error = ERROR_DICTIONARY.INVALID_MOCK_QUANTITY;
+
+        throw new CustomError(
+            error.message,
+            "INVALID_MOCK_QUANTITY",
+            error.statusCode
+        );
     }
 
     return qty;
 };
 
 class MockController {
-    async getUsers(req, res) {
+    async getUsers(req, res, next) {
         try {
-            const qty = validateQty(req.query.qty || 1);
-
-            const users = mockService.generateUsers(qty);
+            const qty = validateQty(req.query.qty);
+            const users = await mockService.getUsers(qty);
 
             return res.status(200).json(users);
         } catch (error) {
-            return res.status(400).json({
-                message: error.message
-            });
+            return next(error);
         }
     }
 
-    async getDrivers(req, res) {
+    async getDrivers(req, res, next) {
         try {
-            const qty = validateQty(req.query.qty || 1);
-
-            const drivers = mockService.generateDrivers(qty);
+            const qty = validateQty(req.query.qty);
+            const drivers = await mockService.getDrivers(qty);
 
             return res.status(200).json(drivers);
         } catch (error) {
-            return res.status(400).json({
-                message: error.message
-            });
+            return next(error);
         }
     }
 
-    async getOrders(req, res) {
+    async getOrders(req, res, next) {
         try {
-            const qty = validateQty(req.query.qty || 1);
-
-            const orders = mockService.generateOrders(qty);
+            const qty = validateQty(req.query.qty);
+            const orders = await mockService.getOrders(qty);
 
             return res.status(200).json(orders);
         } catch (error) {
-            return res.status(400).json({
-                message: error.message
-            });
+            return next(error);
         }
     }
 
-    async getDeliveries(req, res) {
+    async getDeliveries(req, res, next) {
         try {
-            const qty = validateQty(req.query.qty || 1);
-
-            const deliveries = mockService.generateDeliveries(qty);
+            const qty = validateQty(req.query.qty);
+            const deliveries = await mockService.getDeliveries(qty);
 
             return res.status(200).json(deliveries);
         } catch (error) {
-            return res.status(400).json({
-                message: error.message
-            });
+            return next(error);
         }
     }
 
-    async seed(req, res) {
+    async seed(req, res, next) {
         try {
             const qty = validateQty(req.query.qty || 1);
 
@@ -79,10 +75,7 @@ class MockController {
                 data: result
             });
         } catch (error) {
-            return res.status(500).json({
-                message: "Error al cargar los datos de prueba",
-                error: error.message
-            });
+            return next(error);
         }
     }
 }
