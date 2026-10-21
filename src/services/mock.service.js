@@ -7,6 +7,7 @@ const { generateDeliveries } = require("../mock/delivery.mock");
 const { PRODUCT_STATUS } = require("../constants");
 const CustomError = require("../errors/custom.error");
 const ERROR_DICTIONARY = require("../errors/error.dictionary");
+const logger = require("../config/logger");
 
 class MockService {
     generateUsers(qty = 1) {
@@ -48,6 +49,7 @@ class MockService {
 
     async seed(qty = 1) {
         try {
+            logger.info(`Iniciando carga de datos mock. Cantidad: ${qty}`);
             const users = generateUsers(qty);
             const drivers = generateDrivers(qty);
 
@@ -87,6 +89,10 @@ class MockService {
             const createdDeliveries =
                 await mockRepository.createDeliveries(deliveries);
 
+            logger.info(
+                `Datos mock cargados correctamente: ${createdUsers.length} usuarios, ${createdDrivers.length} repartidores, ${products.length} productos, ${createdOrders.length} pedidos y ${createdDeliveries.length} entregas`
+            );
+
             return {
                 users: createdUsers,
                 drivers: createdDrivers,
@@ -95,6 +101,7 @@ class MockService {
                 deliveries: createdDeliveries
             };
         } catch (error) {
+            logger.error(`Error al cargar datos mock: ${error.message}`);
             const seedError = ERROR_DICTIONARY.MOCK_SEED_ERROR;
 
             throw new CustomError(

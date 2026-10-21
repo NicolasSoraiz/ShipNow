@@ -1,8 +1,8 @@
 # ShipNow API
 
-API desarrollada con Node.js, Express y MongoDB para la gestión de usuarios y productos, incorporando un sistema de mocking y carga de datos de prueba.
+API desarrollada con Node.js, Express y MongoDB para la gestión de usuarios, productos, pedidos y entregas. El proyecto incorpora generacion de datos simulados, carga de datos de prueba, manejo centralizado de errores y un sistema de logging con Winston.
 
-El proyecto utiliza una arquitectura de tres capas para separar las responsabilidades de cada parte de la aplicación.
+El proyecto utiliza una arquitectura de tres capas para separar las responsabilidades y facilitar el mantenimiento, las pruebas y escalabilidad del código.
 
 ## Tecnologías
 
@@ -11,6 +11,8 @@ El proyecto utiliza una arquitectura de tres capas para separar las responsabili
 * MongoDB
 * Mongoose
 * dotenv
+* Winston
+* Winston-Daily-rotate-file
 
 ## Arquitectura
 
@@ -29,7 +31,7 @@ Se encarga de:
 * Recibir las solicitudes.
 * Obtener parámetros y datos del request.
 * Llamar al Service correspondiente.
-* Devolver la respuesta HTTP exitosas.
+* Devolver la respuesta HTTP.
 * Enviar los errores mediante next(error) al middleware global.
 
 El Controller no contiene consultas directas a MongoDB ni utiliza mongoose para acceder a la base de datos.
@@ -38,21 +40,17 @@ El Controller no contiene consultas directas a MongoDB ni utiliza mongoose para 
 
 Contiene la lógica de negocio de la aplicación.
 
-Se encarga, entre otras cosas, de:
+Se encarga de:
 
 * Aplicar reglas de negocio.
 * Definir valores por defecto.
 * Procesar los datos antes de enviarlos al Repository.
 * Detectar errores propios del dominio.
-* Coordinar la generación de datos mock.
+* Coordinar la generación de datos simulados.
 * Coordinar la carga de datos de prueba.
+* Registrar eventos relevantes de la lógica de negocio mediante Winston.
 
-En este proyecto, el Service:
-
-- Asigna el rol USER por defecto al crear un usuario.
-- Establece el estado AVAILABLE al crear un producto.
-- Detecta cuando un usuario o producto no existe.
-- Gestiona errores relacionados con la carga de datos mock.
+Entre sus responsabilidades se encuentran asignar el rol USER por defecto al crear un usuario, establecer el estado AVAILABLE al crear un producto y gestionar errores relacionados con usuarios, productos y carga de datos mock.
 
 ### Repository
 
@@ -66,7 +64,7 @@ User.findById(...)
 User.create(...)
 ```
 
-y:
+y para los productos:
 
 ```js
 Product.find(...)
@@ -76,12 +74,7 @@ Product.create(...)
 
 para el sistema mocking tambíen se encarga de insertar los datos generados:
 
-```js
-User.insertMany(...)
-Product.insertMany(...)
-Order.insertMany(...)
-Delivery.insertMany(...)
-```
+Para la carga de datos de prueba también utiliza operaciones de inserción de usuarios, repartidores, productos, pedidos y entregas.
 
 De esta forma, el Service no necesita conocer cómo se realizan las consultas a MongoDB.
 
@@ -91,7 +84,8 @@ De esta forma, el Service no necesita conocer cómo se realizan las consultas a 
 src/
 ├── config/
 │   ├── database.js
-│   └── env.config.js
+│   ├── env.config.js
+|   └── logger.js
 │
 ├── constants/
 │   └── index.js
@@ -99,7 +93,8 @@ src/
 ├── controllers/
 │   ├── product.controller.js
 │   |── user.controller.js
-|   └── mock.controller.js
+|   |── mock.controller.js
+|   └── logger.controller.js
 |   
 ├── errors/
 |   ├── custom.error.js
@@ -128,7 +123,8 @@ src/
 ├── routes/
 │   ├── product.routes.js
 │   |── user.routes.js
-|   └── mock.routes.js
+|   |── mock.routes.js
+|   └── logger.routes.js
 │
 ├── services/
 │   ├── product.service.js
@@ -138,6 +134,8 @@ src/
 ├── app.js
 └── server.js
 ```
+
+La carpeta logs/ se genera automáticamente cuando Winston comienza a escribir registros. Los archivos generados no deben subirse al repositorio.
 
 ## Instalación
 
@@ -247,7 +245,7 @@ Ejemplo:
 
 Si no se especifica un rol, el usuario se crea con el rol `USER`.
 
-## Mocking
+## Mocking y carga de datos de prueba
 
 El proyecto incorpora un sistema de generación de datos simulados para realizar pruebas sin tener que ingresar manualmente todos los registros.
 
@@ -393,11 +391,11 @@ devuelve un error 400 Bad Request:
         "message": "qty debe ser un número entero mayor que 0"
 }
 
-## Manejo profesional de errores
+## Manejo centralizado de errores
 
-El proyecto cuenta con un sistema centralizado de manejo de errores mediante un middleware global.
+El proyecto cuenta con un middleware global de manejo de errores.
 
-Los errores son detectados en la capa correspondiente y enviados mediante next(error) hasta el middleware de errores.
+Los errores son enviados mediante next(error) hasta el middleware global, que determina el codigo HTTP y la respuesta correspondiente.
 
 El flujo es:
 
@@ -405,13 +403,11 @@ Controller
     ↓
 Service
     ↓
-CustomError
+CustomError o error de mongoose
     ↓
 Error Middleware
     ↓
 Respuesta HTTP
-
-El middleware se encuentra en: src/middlewares/error.middleware.js
 
 ## Estructura de las respuestas de error
 
@@ -424,6 +420,79 @@ Todas las respuestas de error utilizan una estructura uniforme:
 }
 
 Esto permite que el cliente de la API pueda interpretar los errores de manera consistente.
+
+## Logging y monitoreo básico
+
+ShipNow utiliza Winston para centralizar el registro de eventos, errores y mensajes relevantes de la aplicación.
+
+El logger se integra con el inicio del servidor, la conexión a MongoDB, el servicio de carga de datos mock y el middleware global de errores.
+
+## Niveles de logging
+
+Se utilizan seis niveles personalizados:
+
+Nivel                  Uso
+
+debug         Información detallada para depuración
+
+http          Información relacionada con solicitudes HTTP
+
+info          Eventos informativos, como el inicio del servidor
+
+warning       Situaciones inesperadas o datos inválidos
+
+error         Errores que requieren atención
+
+fatal         Fallas críticas que pueden impedir el funcionamiento de la aplicación
+
+## Comportamiento según el entorno
+
+El logger distingue entre desarrollo y producción mediante la variable NODE_ENV.
+
+- Desarrollo (development): la consola muestra los niveles desde debug.
+- Producción: la consola muestra los niveles desde info.
+- Archivos: el archivo general conserva los registros desde debug, mientras que el archivo de errores conserva únicamente los niveles error y fatal.
+        * general conserva los registros desde debug, mientras que el archivo de errores conserva únicamente los niveles error y fatal.
+
+Los registros incluyen fecha, nivel y mensaje. Cuando se registra un objeto de error compatible, también puede incluirse su stack trace.
+
+## Archivos de logs
+
+Los registros se guardan automáticamente en la carpeta logs/, ubicada en la raíz del proyecto.
+
+## Endpoint de prueba del logger
+
+Para comprobar los niveles de logging se dispone de un endpoint de prueba:
+
+GET /api/logger/test
+
+La ruta ejecuta registros de prueba de los seis niveles:
+
+- debug
+- http
+- info
+- warning
+- error
+- fatal
+
+Si la solicitud se procesa correctamente, devuelve una respuesta similar a:
+
+{
+        "status": "success",
+        "message": "Se registraron pruebas de todos los niveles de logging"
+}
+
+Este endpoint permite verificar que Winston genere los mensajes correspondientes en la consola y en los archivos de registro. Los mensajes error y fatal también deben aparecer en el archivo exclusivo de errores.
+
+## Integracion con el middleware global
+
+El middleware global registra información sobre los errores recibidos y el endpoint que los originó.
+
+- Los errores de validación y otros errores del cliente se registran como warning.
+- Los errores internos se registran como error.
+- Las fallas críticas durante el inicio o la conexión con MongoDB se registran como fatal.
+
+El cliente continúa recibiendo una respuesta JSON uniforme sin exponer detalles técnicos internos que no necesita conocer.
 
 ## Errores de dominio
 
