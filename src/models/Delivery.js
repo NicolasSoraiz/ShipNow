@@ -1,5 +1,4 @@
 const mongoose = require("mongoose");
-
 const { DELIVERY_STATUS } = require("../constants");
 
 const deliverySchema = new mongoose.Schema(

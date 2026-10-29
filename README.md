@@ -1,8 +1,8 @@
 # ShipNow API
 
-API desarrollada con Node.js, Express y MongoDB para la gestión de usuarios, productos, pedidos y entregas. El proyecto incorpora generacion de datos simulados, carga de datos de prueba, manejo centralizado de errores y un sistema de logging con Winston.
+API desarrollada con Node.js, Express y MongoDB para la gestión de usuarios, productos, pedidos y entregas. El proyecto incorpora generacion de datos simulados, carga de datos de prueba, manejo centralizado de errores, un sistema de logging con Winston y documentación interactiva mediante Swagger.
 
-El proyecto utiliza una arquitectura de tres capas para separar las responsabilidades y facilitar el mantenimiento, las pruebas y escalabilidad del código.
+La aplicación utiliza una arquitectura por capas para separar las responsabilidades y facilitar el mantenimiento y la escalabilidad del código.
 
 ## Tecnologías
 
@@ -13,6 +13,8 @@ El proyecto utiliza una arquitectura de tres capas para separar las responsabili
 * dotenv
 * Winston
 * Winston-Daily-rotate-file
+* swagger-jsdoc
+* swagger-ui-express
 
 ## Arquitectura
 
@@ -26,37 +28,37 @@ Controller → Service → Repository → Database
 
 Es el punto de entrada de las peticiones HTTP.
 
-Se encarga de:
+Sus responsabilidades son:
 
 * Recibir las solicitudes.
-* Obtener parámetros y datos del request.
+* Obtener los parámetros y datos de la petición.
 * Llamar al Service correspondiente.
 * Devolver la respuesta HTTP.
-* Enviar los errores mediante next(error) al middleware global.
+* Enviar los errores al middleware global mediante next(error).
 
-El Controller no contiene consultas directas a MongoDB ni utiliza mongoose para acceder a la base de datos.
+Los controllers no realizan consultas directamente a MongoDB.
 
 ### Service
 
 Contiene la lógica de negocio de la aplicación.
 
-Se encarga de:
+Sus responsabilidades incluyen:
 
-* Aplicar reglas de negocio.
+* Aplicar las reglas de negocio.
 * Definir valores por defecto.
 * Procesar los datos antes de enviarlos al Repository.
-* Detectar errores propios del dominio.
+* Gestionar errores especificos del dominio.
 * Coordinar la generación de datos simulados.
 * Coordinar la carga de datos de prueba.
-* Registrar eventos relevantes de la lógica de negocio mediante Winston.
+* Registrar eventos relevantes mediante Winston.
 
-Entre sus responsabilidades se encuentran asignar el rol USER por defecto al crear un usuario, establecer el estado AVAILABLE al crear un producto y gestionar errores relacionados con usuarios, productos y carga de datos mock.
+Por ejemplo, los usuarios reciben el rol USER por defecto y los productos utilizan el estado AVAILABLE cuando corresponde.
 
 ### Repository
 
-Se encarga exclusivamente del acceso a los datos.
+Se encarga del acceso a los datos mediante Mongoose.
 
-Es la capa que conoce las consultas realizadas mediante Mongoose, como:
+Entre las operaciones utilizadas se encuentran:
 
 ```js
 User.find(...)
@@ -85,7 +87,10 @@ src/
 ├── config/
 │   ├── database.js
 │   ├── env.config.js
-|   └── logger.js
+|   ├── logger.js
+|   ├── swagger.js
+|   └── swagger/
+|       └── schemas.js
 │
 ├── constants/
 │   └── index.js
@@ -135,11 +140,11 @@ src/
 └── server.js
 ```
 
-La carpeta logs/ se genera automáticamente cuando Winston comienza a escribir registros. Los archivos generados no deben subirse al repositorio.
+La carpeta logs/ se genera cuando Winston comienza a guardar registros. Los archivos de logs no deben subirse al repositorio.
 
 ## Instalación
 
-Clonar el repositorio y entrar en la carpeta del proyecto.
+Clonar el repositorio y acceder a la carpeta del proyecto.
 
 Instalar las dependencias:
 
@@ -151,8 +156,6 @@ npm install
 
 Crear un archivo `.env` en la raíz del proyecto.
 
-Se puede utilizar `.env.example` como referencia.
-
 Ejemplo:
 
 ```env
@@ -161,9 +164,9 @@ MONGODB_URI=mongodb://localhost:27017/shipnow
 NODE_ENV=development
 ```
 
-El archivo `.env` no debe subirse al repositorio.
+El archivo .env contiene la configuración local de la aplicación y no debe subirse al repositorio.
 
-Las variables de entorno son validadas al iniciar la aplicación. Si falta una variable requerida, la aplicación muestra un error y no inicia.
+Las variables de entorno se validan al iniciar la aplicación. Si falta una variable requerida o su configuración es inválida, el servidor no debería iniciar correctamente.
 
 ## Ejecución
 
@@ -180,6 +183,74 @@ http://localhost:3000
 ```
 
 La aplicación requiere que MongoDB esté ejecutándose localmente.
+
+## Documentación de la API con Swagger
+
+ShipNow utiliza Swagger para documentar y explorar los endpoints de su API REST.
+
+### Acceso a Swagger UI
+
+Con el servidor iniciado, abrir:
+
+http://localhost:3000/api/docs
+
+Desde esta interfaz se pueden consultar los endpoints documentados, sus parámetros, los cuerpos de las solicitudes y las respuestas previstas.
+
+### Cómo iniciar el servidor
+
+1. Instalar las dependencias:
+
+   ```bash
+   npm install
+   ```
+
+2. Configurar las variables de entorno en el archivo `.env`.
+
+3. Verificar que MongoDB esté funcionando.
+
+4. Iniciar la aplicación:
+
+   ```bash
+   npm start
+   ```
+
+5. Abrir en el navegador:
+
+   http://localhost:3000/api/docs
+
+### Organización de la documentación
+
+La configuración de Swagger se encuentra separada de las rutas de la aplicación:
+
+- `src/config/swagger.js`: configuración general de OpenAPI, información de la API, servidor y etiquetas.
+- `src/config/swagger/schemas.js`: schemas reutilizables para las respuestas y los modelos documentados.
+- `src/routes/`: rutas y anotaciones Swagger correspondientes a las operaciones de la API.
+
+### Módulos documentados
+
+- **Users:** consulta, búsqueda por ID y creación de usuarios.
+- **Products:** consulta, búsqueda por ID y creación de productos.
+- **Mocks:** generación de usuarios, conductores, pedidos y entregas simulados, y carga de datos de prueba.
+- **Logger:** endpoint de prueba para verificar los niveles de logging.
+
+Los schemas de `Order` y `Delivery` describen la estructura de esas entidades. No implican que existan endpoints independientes para administrar pedidos y entregas.
+
+### Schemas reutilizables
+
+La documentación incluye los siguientes schemas:
+
+- `User`: estructura del usuario.
+- `OrderItem`: producto y cantidad dentro de un pedido.
+- `Order`: estructura del pedido.
+- `Delivery`: estructura de la entrega.
+- `ErrorResponse`: formato uniforme de errores.
+- `SuccessResponse`: formato genérico de respuesta exitosa.
+
+### Pruebas de la documentación
+
+Abrir Swagger UI y verificar que las operaciones documentadas aparezcan agrupadas por etiquetas. Se puede desplegar cada operación para consultar sus parámetros, cuerpos de solicitud y respuestas documentadas.
+
+Las pruebas de los endpoints deben realizarse con una base de datos disponible y datos válidos cuando corresponda.
 
 ## Endpoints
 
@@ -255,7 +326,9 @@ Los endpoints de mocking se encuentran agrupados bajo:
 /api/mocks
 ```
 
-Los datos generados mediante los endpoints GET son simulados y no se guardan en MongoDB.
+El parámetro qty permite indicar la cantidad de elementos que se desean generar. Es opcional y su valor predeterminado es 1.
+
+Los endpoints GET generan datos simulados y no los guardan en MongoDB.
 
 Generar usuarios
 
@@ -263,7 +336,7 @@ Generar usuarios
 GET /api/mocks/users?qty=2
 ```
 
-Genera la cantidad de usuarios indicada mediante qty.
+Genera usuarios simulados con sus datos correspondientes.
 
 Ejemplo:
 
@@ -373,9 +446,7 @@ Los arrays contienen los registros realmente creados en MongoDB.
 
 ## Validación del parámetro qty
 
-Los endpoints de mocking validan el parámetro qty.
-
-Debe ser un número entero mayor que 0.
+Los endpoints de mocking validan que qty sea un número entero mayor que cero.
 
 Por ejemplo:
 
@@ -383,7 +454,7 @@ Por ejemplo:
 GET /api/mocks/users?qty=-2
 ```
 
-devuelve un error 400 Bad Request:
+devuelve un error 400 Bad Request con el formato general de errores:
 
 {
         "status": "error",
@@ -411,7 +482,7 @@ Respuesta HTTP
 
 ## Estructura de las respuestas de error
 
-Todas las respuestas de error utilizan una estructura uniforme:
+Las respuestas de error utilizan una estructura uniforme:
 
 {
         "status": "error",
@@ -419,7 +490,7 @@ Todas las respuestas de error utilizan una estructura uniforme:
         "message": "Descripción del error"
 }
 
-Esto permite que el cliente de la API pueda interpretar los errores de manera consistente.
+Esta estructura permite que los clientes de la API interpreten los errores de manera consistente.
 
 ## Logging y monitoreo básico
 

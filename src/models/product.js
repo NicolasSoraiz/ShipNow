@@ -1,5 +1,4 @@
 const mongoose = require("mongoose");
-
 const { PRODUCT_STATUS } = require("../constants");
 
 const productSchema = new mongoose.Schema(
