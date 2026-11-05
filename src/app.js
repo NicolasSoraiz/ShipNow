@@ -7,6 +7,7 @@ const errorMiddleware = require("./middlewares/error.middlewares");
 const CustomError = require("./errors/custom.error");
 const swaggerUi = require("swagger-ui-express");
 const swaggerSpec = require("./config/swagger");
+const orderRoutes = require("./routes/order.routes");
 
 
 const app = express();
@@ -15,6 +16,7 @@ app.use(express.json());
 
 app.use("/api/products", productRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/orders", orderRoutes);
 app.use("/api/mocks", mockRoutes);
 app.use("/api/logger", loggerRoutes);
 app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));

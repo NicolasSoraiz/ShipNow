@@ -21,8 +21,8 @@ const validateQty = (value) => {
 class MockController {
     async getUsers(req, res, next) {
         try {
-            const qty = validateQty(req.query.qty);
-            const users = await mockService.getUsers(qty);
+            const qty = validateQty(req.query.qty ?? 1);
+            const users = mockService.generateUsers(qty);
 
             return res.status(200).json(users);
         } catch (error) {
@@ -32,8 +32,8 @@ class MockController {
 
     async getDrivers(req, res, next) {
         try {
-            const qty = validateQty(req.query.qty);
-            const drivers = await mockService.getDrivers(qty);
+            const qty = validateQty(req.query.qty ?? 1);
+            const drivers = mockService.generateDrivers(qty);
 
             return res.status(200).json(drivers);
         } catch (error) {
@@ -43,8 +43,8 @@ class MockController {
 
     async getOrders(req, res, next) {
         try {
-            const qty = validateQty(req.query.qty);
-            const orders = await mockService.getOrders(qty);
+            const qty = validateQty(req.query.qty ?? 1);
+            const orders = mockService.generateOrders(qty);
 
             return res.status(200).json(orders);
         } catch (error) {
@@ -54,8 +54,8 @@ class MockController {
 
     async getDeliveries(req, res, next) {
         try {
-            const qty = validateQty(req.query.qty);
-            const deliveries = await mockService.getDeliveries(qty);
+            const qty = validateQty(req.query.qty ?? 1);
+            const deliveries = mockService.generateDeliveries(qty);
 
             return res.status(200).json(deliveries);
         } catch (error) {
@@ -65,8 +65,7 @@ class MockController {
 
     async seed(req, res, next) {
         try {
-            const qty = validateQty(req.query.qty || 1);
-
+            const qty = validateQty(req.query.qty ?? 1);
             const result = await mockService.seed(qty);
 
             return res.status(201).json({

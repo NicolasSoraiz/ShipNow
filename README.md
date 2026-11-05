@@ -1,6 +1,7 @@
 # ShipNow API
 
-API desarrollada con Node.js, Express y MongoDB para la gestión de usuarios, productos, pedidos y entregas. El proyecto incorpora generacion de datos simulados, carga de datos de prueba, manejo centralizado de errores, un sistema de logging con Winston y documentación interactiva mediante Swagger.
+API desarrollada con Node.js, Express y MongoDB para la gestión de usuarios, productos, pedidos y entregas. 
+El proyecto incorpora generacion de datos simulados, carga de datos de prueba, manejo centralizado de errores, un sistema de logging con Winston, documentación interactiva mediante Swagger y pruebas funcionales.
 
 La aplicación utiliza una arquitectura por capas para separar las responsabilidades y facilitar el mantenimiento y la escalabilidad del código.
 
@@ -15,6 +16,10 @@ La aplicación utiliza una arquitectura por capas para separar las responsabilid
 * Winston-Daily-rotate-file
 * swagger-jsdoc
 * swagger-ui-express
+* Mocha
+* Chai
+* Supertest
+* Cross-env
 
 ## Arquitectura
 
@@ -74,9 +79,7 @@ Product.findById(...)
 Product.create(...)
 ```
 
-para el sistema mocking tambíen se encarga de insertar los datos generados:
-
-Para la carga de datos de prueba también utiliza operaciones de inserción de usuarios, repartidores, productos, pedidos y entregas.
+También se encarga de las operaciones de acceso e inserción de datos para pedidos y mocks.
 
 De esta forma, el Service no necesita conocer cómo se realizan las consultas a MongoDB.
 
@@ -99,7 +102,8 @@ src/
 │   ├── product.controller.js
 │   |── user.controller.js
 |   |── mock.controller.js
-|   └── logger.controller.js
+|   ├── logger.controller.js
+│   └── order.controller.js
 |   
 ├── errors/
 |   ├── custom.error.js
@@ -123,21 +127,37 @@ src/
 ├── repositories/
 │   ├── product.repository.js
 │   |── user.repository.js
-|   └── mock.repository.js
+|   ├── mock.repository.js
+│   └── order.repository.js
 │
 ├── routes/
 │   ├── product.routes.js
 │   |── user.routes.js
 |   |── mock.routes.js
-|   └── logger.routes.js
+|   ├── logger.routes.js
+│   └── order.routes.js
 │
 ├── services/
 │   ├── product.service.js
 │   |── user.service.js
-|   └── mock.service.js
+|   ├── mock.service.js
+│   └── order.service.js
 │
 ├── app.js
 └── server.js
+
+tests/
+├── setup.js
+├── users/
+│   └── users.test.js
+├── products/
+│   └── products.test.js
+├── orders/
+│   └── orders.test.js
+├── mocks/
+│   └── mocks.test.js
+└── system/
+    └── system.test.js
 ```
 
 La carpeta logs/ se genera cuando Winston comienza a guardar registros. Los archivos de logs no deben subirse al repositorio.
@@ -230,10 +250,9 @@ La configuración de Swagger se encuentra separada de las rutas de la aplicació
 
 - **Users:** consulta, búsqueda por ID y creación de usuarios.
 - **Products:** consulta, búsqueda por ID y creación de productos.
+- **Orders:** consulta, búsqueda por ID y creación de pedidos.
 - **Mocks:** generación de usuarios, conductores, pedidos y entregas simulados, y carga de datos de prueba.
 - **Logger:** endpoint de prueba para verificar los niveles de logging.
-
-Los schemas de `Order` y `Delivery` describen la estructura de esas entidades. No implican que existan endpoints independientes para administrar pedidos y entregas.
 
 ### Schemas reutilizables
 
@@ -245,12 +264,6 @@ La documentación incluye los siguientes schemas:
 - `Delivery`: estructura de la entrega.
 - `ErrorResponse`: formato uniforme de errores.
 - `SuccessResponse`: formato genérico de respuesta exitosa.
-
-### Pruebas de la documentación
-
-Abrir Swagger UI y verificar que las operaciones documentadas aparezcan agrupadas por etiquetas. Se puede desplegar cada operación para consultar sus parámetros, cuerpos de solicitud y respuestas documentadas.
-
-Las pruebas de los endpoints deben realizarse con una base de datos disponible y datos válidos cuando corresponda.
 
 ## Endpoints
 
@@ -314,7 +327,41 @@ Ejemplo:
 }
 ```
 
-Si no se especifica un rol, el usuario se crea con el rol `USER`.
+Orders
+
+Obtener todos los pedidos:
+
+```http
+GET /api/orders
+```
+
+Obtener un pedido por ID:
+
+```http
+GET /api/orders/:id
+```
+
+Crear un pedido:
+
+```http
+POST /api/orders
+```
+
+Ejemplo:
+
+{
+  "user": "ID_DEL_USUARIO",
+  "items": [
+    {
+      "product": "ID_DEL_PRODUCTO",
+      "quantity": 2
+    }
+  ]
+}
+
+El sistema verifica que el usuario y los productos existan, que las cantidades sean válidas y que haya stock suficiente.
+
+El pedido se crea con estado PENDING y prioridad MEDIUM por defecto.
 
 ## Mocking y carga de datos de prueba
 
@@ -337,21 +384,6 @@ GET /api/mocks/users?qty=2
 ```
 
 Genera usuarios simulados con sus datos correspondientes.
-
-Ejemplo:
-
-[
-        {
-        "name": "Ana Pérez",
-        "email": "ana.pérez.12345@test.com",
-        "role": "USER"
-        },
-        {
-        "name": "Luis Gómez",
-        "email": "luis.gómez.67890@test.com",
-        "role": "USER"
-        }
-]
 
 Generar repartidores
 
@@ -492,79 +524,6 @@ Las respuestas de error utilizan una estructura uniforme:
 
 Esta estructura permite que los clientes de la API interpreten los errores de manera consistente.
 
-## Logging y monitoreo básico
-
-ShipNow utiliza Winston para centralizar el registro de eventos, errores y mensajes relevantes de la aplicación.
-
-El logger se integra con el inicio del servidor, la conexión a MongoDB, el servicio de carga de datos mock y el middleware global de errores.
-
-## Niveles de logging
-
-Se utilizan seis niveles personalizados:
-
-Nivel                  Uso
-
-debug         Información detallada para depuración
-
-http          Información relacionada con solicitudes HTTP
-
-info          Eventos informativos, como el inicio del servidor
-
-warning       Situaciones inesperadas o datos inválidos
-
-error         Errores que requieren atención
-
-fatal         Fallas críticas que pueden impedir el funcionamiento de la aplicación
-
-## Comportamiento según el entorno
-
-El logger distingue entre desarrollo y producción mediante la variable NODE_ENV.
-
-- Desarrollo (development): la consola muestra los niveles desde debug.
-- Producción: la consola muestra los niveles desde info.
-- Archivos: el archivo general conserva los registros desde debug, mientras que el archivo de errores conserva únicamente los niveles error y fatal.
-        * general conserva los registros desde debug, mientras que el archivo de errores conserva únicamente los niveles error y fatal.
-
-Los registros incluyen fecha, nivel y mensaje. Cuando se registra un objeto de error compatible, también puede incluirse su stack trace.
-
-## Archivos de logs
-
-Los registros se guardan automáticamente en la carpeta logs/, ubicada en la raíz del proyecto.
-
-## Endpoint de prueba del logger
-
-Para comprobar los niveles de logging se dispone de un endpoint de prueba:
-
-GET /api/logger/test
-
-La ruta ejecuta registros de prueba de los seis niveles:
-
-- debug
-- http
-- info
-- warning
-- error
-- fatal
-
-Si la solicitud se procesa correctamente, devuelve una respuesta similar a:
-
-{
-        "status": "success",
-        "message": "Se registraron pruebas de todos los niveles de logging"
-}
-
-Este endpoint permite verificar que Winston genere los mensajes correspondientes en la consola y en los archivos de registro. Los mensajes error y fatal también deben aparecer en el archivo exclusivo de errores.
-
-## Integracion con el middleware global
-
-El middleware global registra información sobre los errores recibidos y el endpoint que los originó.
-
-- Los errores de validación y otros errores del cliente se registran como warning.
-- Los errores internos se registran como error.
-- Las fallas críticas durante el inicio o la conexión con MongoDB se registran como fatal.
-
-El cliente continúa recibiendo una respuesta JSON uniforme sin exponer detalles técnicos internos que no necesita conocer.
-
 ## Errores de dominio
 
 Los errores específicos de la aplicación se encuentran centralizados en: src/errors/error.dictionary.js
@@ -623,85 +582,81 @@ devuelve:
         "message": "Ruta no encontrada"
 }
 
-con HTTP 404
+## Logging y monitoreo básico
 
-Pruebas de errores
+ShipNow utiliza Winston para centralizar el registro de eventos, errores y mensajes relevantes de la aplicación.
 
-Usuario inexistente
+El logger se integra con:
+- el inicio del servidor 
+- la conexión a MongoDB 
+- el servicio de carga de datos mock  
+- el middleware global de errores.
 
-GET /api/users/000000000000000000000000
+## Niveles de logging
 
-respuesta:
+Se utilizan seis niveles personalizados:
 
-{
-        "status": "error",
-        "code": "USER_NOT_FOUND",
-        "message": "Usuario no encontrado"
-}
+Nivel                  Uso
 
-Producto inexistente
+debug         Información detallada para depuración
 
-GET /api/products/000000000000000000000000
+http          Información relacionada con solicitudes HTTP
 
-respuesta:
+info          Eventos informativos, como el inicio del servidor
 
-{
-        "status": "error",
-        "code": "PRODUCT_NOT_FOUND",
-        "message": "Producto no encontrado"
-}
+warning       Situaciones inesperadas o datos inválidos
 
-ID inválido
+error         Errores que requieren atención
 
-GET /api/users/123
+fatal         Fallas críticas que pueden impedir el funcionamiento de la aplicación
 
-respuesta:
+## Comportamiento según el entorno
 
-{
-        "status": "error",
-        "code": "INVALID_DATA",
-        "message": "Los datos enviados no son válidos"
-}
+El logger distingue entre desarrollo y producción mediante la variable NODE_ENV.
 
-Cantidad de mocks inválida
+- Desarrollo (development): la consola muestra los niveles desde debug.
+- Producción: la consola muestra los niveles desde info.
+- Archivos: el archivo general conserva los registros desde debug, mientras que el archivo de errores conserva únicamente los niveles error y fatal.
 
-GET /api/mocks/users?qty=-5
+Los registros incluyen fecha, nivel y mensaje. Cuando se registra un objeto de error compatible, también puede incluirse su stack trace.
 
-respuesta:
+## Archivos de logs
 
-{
-        "status": "error",
-        "code": "INVALID_MOCK_QUANTITY",
-        "message": "La cantidad de mocks debe ser un número entero mayor que 0"
-}
+Los registros se guardan automáticamente en la carpeta logs/, ubicada en la raíz del proyecto.
 
-Error durante el seed
+## Endpoint de prueba del logger
 
-Si MongoDB no está disponible y se ejecuta:
+Para comprobar los niveles de logging se dispone de un endpoint de prueba:
 
-POST /api/mocks/seed?qty=2
+GET /api/logger/test
 
-el error se transforma en:
+La ruta ejecuta registros de prueba de los seis niveles:
 
-{
-        "status": "error",
-        "code": "MOCK_SEED_ERROR",
-        "message": "No se pudieron cargar los datos de prueba"
-}
+- debug
+- http
+- info
+- warning
+- error
+- fatal
 
-Datos duplicados
-
-Si se intenta crear un usuario utilizando un email que ya existe, MongoDB genera un error E11000.
-
-El middleware lo transforma en:
+Si la solicitud se procesa correctamente, devuelve una respuesta similar a:
 
 {
-        "status": "error",
-        "code": "INVALID_DATA",
-        "message": "Los datos enviados no son válidos"
+        "status": "success",
+        "message": "Se registraron pruebas de todos los niveles de logging"
 }
 
-De esta forma, los errores no se manejan directamente en las rutas y las respuestas mantienen un formato consistente en toda la API.
+Este endpoint permite verificar que Winston genere los mensajes correspondientes en la consola y en los archivos de registro. Los mensajes error y fatal también deben aparecer en el archivo exclusivo de errores.
+
+## Integracion con el middleware global
+
+El middleware global registra información sobre los errores recibidos y el endpoint que los originó.
+
+- Los errores de validación y otros errores del cliente se registran como warning.
+- Los errores internos se registran como error.
+- Las fallas críticas durante el inicio o la conexión con MongoDB se registran como fatal.
+
+El cliente continúa recibiendo una respuesta JSON uniforme sin exponer detalles técnicos internos que no necesita conocer.
 
 ## Constantes
 
@@ -799,20 +754,59 @@ MongoDB
 
 Cada capa tiene una responsabilidad específica, evitando mezclar lógica HTTP, lógica de negocio y acceso a datos.
 
-Flujo de manejo de errores
+## Testing
 
-Cuando ocurre un error:
+El proyecto utiliza Mocha, Chai y Supertest para realizar pruebas funcionales de los endpoints de la API.
 
-Petición HTTP
-        ↓
-Controller
-        ↓
-Service
-        ↓
-CustomError / Error de Mongoose
-        ↓
-Error Middleware
-        ↓
-Respuesta HTTP uniforme
+### Herramientas utilizadas
 
-Cada capa tiene una responsabilidad específica, evitando mezclar lógica HTTP, lógica de negocio, acceso a datos y manejo de errores.
+- **Mocha:** ejecución y organización de las pruebas.
+- **Chai:** validación de respuestas y resultados.
+- **Supertest:** realización de solicitudes HTTP a la aplicación.
+- **Cross-env:** configuración de variables de entorno para testing.
+
+### Ejecutar las pruebas
+
+Para ejecutar todas las pruebas funcionales:
+
+```bash
+npm test
+```
+
+### Entorno de testing
+
+Las pruebas utilizan una base de datos independiente para evitar modificar los datos del entorno de desarrollo.
+
+Archivo de configuración: `.env.test`
+
+Variables necesarias:
+
+```env
+NODE_ENV=test
+PORT=3001
+MONGODB_URI=mongodb://127.0.0.1:27017/shipnow_test
+```
+
+Es necesario tener MongoDB instalado y en ejecución.
+
+La configuración de testing verifica que la conexión corresponda a la base de datos `shipnow_test`. Al finalizar las pruebas, se eliminan los datos generados y se cierra la conexión.
+
+### Módulos cubiertos
+
+Las pruebas funcionales verifican:
+
+- **Usuarios:** creación, listado, búsqueda por ID, validación de datos obligatorios y correos duplicados.
+- **Productos:** creación, listado y búsqueda por ID, incluyendo validaciones.
+- **Pedidos:** creación, listado, búsqueda por ID y validaciones de usuario y productos.
+- **Mocks:** generación de usuarios, conductores, pedidos y entregas; validación de cantidades y carga de datos de prueba.
+- **Logger:** funcionamiento del endpoint de prueba de logging.
+- **Swagger:** disponibilidad de la documentación de la API.
+- **Manejo de errores:** respuestas para recursos inexistentes y rutas no encontradas.
+
+Actualmente, el proyecto cuenta con 30 pruebas funcionales que verifican los principales endpoints y sus respuestas exitosas y de error.
+
+### Organización de las pruebas
+
+Las pruebas se encuentran dentro de la carpeta `tests/`, organizadas por módulo y recurso.
+
+La configuración compartida se encuentra en tests/setup.js, donde se establece la conexión con la base de datos de testing y se realiza la limpieza al finalizar la ejecución.

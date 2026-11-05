@@ -1,12 +1,10 @@
 const dotenv = require("dotenv");
 
-dotenv.config();
+const envFile = process.env.NODE_ENV === "test" ? ".env.test" : ".env";
 
-const requiredEnvVariables = [
-    "PORT",
-    "MONGODB_URI",
-    "NODE_ENV"
-];
+dotenv.config({ path: envFile });
+
+const requiredEnvVariables = ["PORT", "MONGODB_URI", "NODE_ENV"];
 
 for (const variable of requiredEnvVariables) {
     if (!process.env[variable]) {
