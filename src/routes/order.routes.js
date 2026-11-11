@@ -1,27 +1,18 @@
 const express = require("express");
 const orderController = require("../controllers/order.controller");
+const { upload } = require("../config/upload.config");
 
 const router = express.Router();
 
-/**
- * @swagger
- * /api/orders:
- *   get:
- *     summary: Obtener todos los pedidos
- *     tags: [Orders]
- *     responses:
- *       200:
- *         description: Lista de pedidos obtenida correctamente
- *       500:
- *         description: Error interno del servidor
- */
 router.get("/", orderController.getAll);
+router.get("/:id", orderController.getById);
+router.post("/", orderController.create);
 
 /**
  * @swagger
- * /api/orders/{id}:
- *   get:
- *     summary: Obtener un pedido por ID
+ * /api/orders/{id}/receipts:
+ *   post:
+ *     summary: Cargar un comprobante de un pedido
  *     tags: [Orders]
  *     parameters:
  *       - in: path
@@ -30,58 +21,33 @@ router.get("/", orderController.getAll);
  *         description: Identificador MongoDB del pedido
  *         schema:
  *           type: string
- *     responses:
- *       200:
- *         description: Pedido obtenido correctamente
- *       400:
- *         description: Identificador inválido
- *       404:
- *         description: Pedido no encontrado
- */
-router.get("/:id", orderController.getById);
-
-/**
- * @swagger
- * /api/orders:
- *   post:
- *     summary: Crear un pedido
- *     tags: [Orders]
  *     requestBody:
  *       required: true
  *       content:
- *         application/json:
+ *         multipart/form-data:
  *           schema:
  *             type: object
  *             required:
- *               - user
- *               - items
+ *               - receipt
  *             properties:
- *               user:
+ *               receipt:
  *                 type: string
- *                 description: ID del usuario
- *               items:
- *                 type: array
- *                 items:
- *                   type: object
- *                   required:
- *                     - product
- *                     - quantity
- *                   properties:
- *                     product:
- *                       type: string
- *                     quantity:
- *                       type: integer
- *               priority:
- *                 type: string
- *                 enum: [LOW, MEDIUM, HIGH]
+ *                 format: binary
+ *                 description: Archivo PDF, JPG o PNG (máximo 5 MB)
  *     responses:
- *       201:
- *         description: Pedido creado correctamente
+ *       200:
+ *         description: Comprobante cargado correctamente
  *       400:
- *         description: Datos inválidos
+ *         description: Archivo faltante, tipo inválido o tamaño excedido
  *       404:
- *         description: Usuario o producto no encontrado
+ *         description: Pedido no encontrado
+ *       500:
+ *         description: Error interno del servidor
  */
-router.post("/", orderController.create);
+router.post(
+    "/:id/receipts",
+    upload.single("receipt"),
+    orderController.uploadReceipt
+);
 
 module.exports = router;

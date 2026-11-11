@@ -5,6 +5,35 @@ const logger = require("../config/logger");
 const errorMiddleware = (error, req, res, next) => {
     const requestInfo = `${req.method} ${req.originalUrl}`;
 
+    // Errores de Multer
+    if (error.name === "MulterError") {
+        let errorCode = "FILE_UPLOAD_ERROR";
+
+        if (error.code === "LIMIT_FILE_SIZE") {
+            errorCode = "FILE_TOO_LARGE";
+        }
+
+        if (
+            error.code === "LIMIT_UNEXPECTED_FILE" ||
+            error.code === "LIMIT_FILE_COUNT"
+        ) {
+            errorCode = "INVALID_DATA";
+        }
+
+        const uploadError = ERROR_DICTIONARY[errorCode];
+
+        logger.warning(
+            `[${requestInfo}] ${errorCode}: ${error.message}`
+        );
+
+        return res.status(uploadError.statusCode).json({
+            status: "error",
+            code: errorCode,
+            message: uploadError.message
+        });
+    }
+
+    // Errores de validación de Mongoose
     if (
         error.name === "ValidationError" ||
         error.name === "CastError" ||
@@ -23,6 +52,7 @@ const errorMiddleware = (error, req, res, next) => {
         });
     }
 
+    // Errores personalizados
     if (error instanceof CustomError) {
         if (error.statusCode >= 500) {
             logger.error(
@@ -41,6 +71,7 @@ const errorMiddleware = (error, req, res, next) => {
         });
     }
 
+    // Errores inesperados
     logger.error(
         `[${requestInfo}] Error inesperado: ${error.stack || error.message}`
     );

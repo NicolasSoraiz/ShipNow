@@ -1,6 +1,7 @@
 const { expect } = require("chai");
 const request = require("supertest");
 const app = require("../../src/app");
+const path = require("path");
 
 describe("Pruebas funcionales - Pedidos", function () {
     let userId;
@@ -121,5 +122,50 @@ describe("Pruebas funcionales - Pedidos", function () {
             expect(response.body).to.have.property("code", "ORDER_NOT_FOUND");
             expect(response.body).to.have.property("message");
         });
+    });
+
+    describe("POST /api/orders/:id/receipts", function () {
+
+        const testFile = path.join(
+            __dirname,
+            "../users/document-test.png"
+        );
+
+        it("Debe cargar un comprobante correctamente", async function () {
+            const response = await request(app)
+                .post(`/api/orders/${orderId}/receipts`)
+                .attach("receipt", testFile);
+
+            expect(response.status).to.equal(200);
+            expect(response.body.status).to.equal("success");
+            expect(response.body.order.receipts).to.be.an("array");
+            expect(response.body.order.receipts.length).to.be.greaterThan(0);
+
+            const receipt = response.body.order.receipts[
+                response.body.order.receipts.length - 1
+            ];
+
+            expect(receipt).to.have.property("filename");
+            expect(receipt).to.have.property("path");
+            expect(receipt.mimetype).to.equal("image/png");
+        });
+
+        it("Debe rechazar la carga cuando no se envía un archivo", async function () {
+            const response = await request(app)
+                .post(`/api/orders/${orderId}/receipts`);
+
+            expect(response.status).to.equal(400);
+            expect(response.body.code).to.equal("FILE_REQUIRED");
+        });
+
+        it("Debe rechazar la carga para un pedido inexistente", async function () {
+            const response = await request(app)
+                .post("/api/orders/671a8b2c3d4e5f60718293a4/receipts")
+                .attach("receipt", testFile);
+
+            expect(response.status).to.equal(404);
+            expect(response.body.code).to.equal("ORDER_NOT_FOUND");
+        });
+
     });
 });

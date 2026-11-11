@@ -33,6 +33,25 @@ class OrderController {
             return next(error);
         }
     }
+
+    async uploadReceipt(req, res, next) {
+        try {
+            const { id } = req.params;
+
+            const order = await orderService.addReceipt(
+                id,
+                req.file
+            );
+
+            return res.status(200).json({
+                status: "success",
+                message: "Comprobante cargado correctamente",
+                order
+            });
+        } catch (error) {
+            return next(error);
+        }
+    }
 }
 
 module.exports = new OrderController();

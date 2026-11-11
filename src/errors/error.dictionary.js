@@ -32,6 +32,31 @@ const ERROR_DICTIONARY = Object.freeze({
     INVALID_DATA: {
         message: "Los datos enviados no son válidos",
         statusCode: 400
+    },
+
+    FILE_REQUIRED: {
+        message: "Debe enviar un archivo",
+        statusCode: 400
+    },
+
+    INVALID_FILE_TYPE: {
+        message: "El tipo de archivo no está permitido. Formatos aceptados: PDF, JPG y PNG",
+        statusCode: 400
+    },
+
+    FILE_TOO_LARGE: {
+        message: "El archivo supera el tamaño máximo permitido de 5 MB",
+        statusCode: 400
+    },
+
+    INVALID_DOCUMENT_TYPE: {
+        message: "El tipo de documento no es válido. Valores permitidos: DNI, LICENSE y OTHER",
+        statusCode: 400
+    },
+
+    FILE_UPLOAD_ERROR: {
+        message: "No se pudo guardar el archivo",
+        statusCode: 500
     }
 });
 

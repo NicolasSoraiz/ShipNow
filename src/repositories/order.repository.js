@@ -17,6 +17,16 @@ class OrderRepository {
     async create(data) {
         return Order.create(data);
     }
+
+    async addReceipt(orderId, receiptData) {
+        return Order.findByIdAndUpdate(
+            orderId,
+            { $push: { receipts: receiptData } },
+            { new: true, runValidators: true }
+        )
+            .populate("user", "name email")
+            .populate("items.product", "name price");
+    }
 }
 
 module.exports = new OrderRepository();

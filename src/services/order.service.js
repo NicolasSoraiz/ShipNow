@@ -4,6 +4,8 @@ const productRepository = require("../repositories/product.repository");
 const CustomError = require("../errors/custom.error");
 const ERROR_DICTIONARY = require("../errors/error.dictionary");
 const { ORDER_STATUS, ORDER_PRIORITY } = require("../constants");
+const logger = require("../config/logger");
+const fs = require("fs/promises");
 
 class OrderService {
 
@@ -84,6 +86,66 @@ class OrderService {
         };
 
         return orderRepository.create(orderData);
+    }
+
+
+    async addReceipt(orderId, file) {
+        try {
+            if (!file) {
+                const error = ERROR_DICTIONARY.FILE_REQUIRED;
+
+                throw new CustomError(
+                    error.message,
+                    "FILE_REQUIRED",
+                    error.statusCode
+                );
+            }
+
+            await this.getById(orderId);
+
+            const receiptData = {
+                originalName: file.originalname,
+                filename: file.filename,
+                path: `uploads/receipts/${file.filename}`,
+                mimetype: file.mimetype,
+                size: file.size,
+                uploadedAt: new Date()
+            };
+
+            const order = await orderRepository.addReceipt(
+                orderId,
+                receiptData
+            );
+
+            if (!order) {
+                throw new CustomError(
+                    "Pedido no encontrado",
+                    "ORDER_NOT_FOUND",
+                    404
+                );
+            }
+
+            logger.info(
+                `[UPLOAD] Comprobante asociado correctamente al pedido ${orderId}`
+            );
+
+            return order;
+
+        } catch (error) {
+            if (file?.path) {
+                try {
+                    await fs.unlink(file.path);
+                } catch (cleanupError) {
+                    if (cleanupError.code !== "ENOENT") {
+                        logger.error(
+                            `[UPLOAD] Error al eliminar archivo temporal: ${cleanupError.message}`
+                        );
+                    }
+                }
+            }
+
+            throw error;
+        }
     }
 }
 

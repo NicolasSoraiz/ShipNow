@@ -1,7 +1,8 @@
 # ShipNow API
 
-API desarrollada con Node.js, Express y MongoDB para la gestión de usuarios, productos, pedidos y entregas. 
-El proyecto incorpora generacion de datos simulados, carga de datos de prueba, manejo centralizado de errores, un sistema de logging con Winston, documentación interactiva mediante Swagger y pruebas funcionales.
+API desarrollada con Node.js, Express y MongoDB para la gestión de usuarios, productos, pedidos y entregas.
+
+El proyecto incorpora generacion de datos simulados, carga de datos de prueba, manejo centralizado de errores, un sistema de logging con Winston, documentación interactiva mediante Swagger y pruebas funcionales y carga de archivos mediante Multer.
 
 La aplicación utiliza una arquitectura por capas para separar las responsabilidades y facilitar el mantenimiento y la escalabilidad del código.
 
@@ -12,6 +13,7 @@ La aplicación utiliza una arquitectura por capas para separar las responsabilid
 * MongoDB
 * Mongoose
 * dotenv
+* Multer
 * Winston
 * Winston-Daily-rotate-file
 * swagger-jsdoc
@@ -57,8 +59,6 @@ Sus responsabilidades incluyen:
 * Coordinar la carga de datos de prueba.
 * Registrar eventos relevantes mediante Winston.
 
-Por ejemplo, los usuarios reciben el rol USER por defecto y los productos utilizan el estado AVAILABLE cuando corresponde.
-
 ### Repository
 
 Se encarga del acceso a los datos mediante Mongoose.
@@ -71,7 +71,7 @@ User.findById(...)
 User.create(...)
 ```
 
-y para los productos:
+para los productos:
 
 ```js
 Product.find(...)
@@ -79,88 +79,106 @@ Product.findById(...)
 Product.create(...)
 ```
 
-También se encarga de las operaciones de acceso e inserción de datos para pedidos y mocks.
+Los repositories también permiten insertar los datos generados por el sistema de mocking.
 
 De esta forma, el Service no necesita conocer cómo se realizan las consultas a MongoDB.
 
 ## Estructura del proyecto
 
 ```text
-src/
-├── config/
-│   ├── database.js
-│   ├── env.config.js
-|   ├── logger.js
-|   ├── swagger.js
-|   └── swagger/
-|       └── schemas.js
-│
-├── constants/
+├── src/
+│   ├── app.js
+│   ├── server.js
+│    
+|   ├── config/
+|       ├── database.js
+│       ├── env.config.js
+|       ├── logger.js
+│       ├── upload.config.js
+|       ├── swagger.js
+|       └── swagger/
+|           └── schemas.js
+│     
+|   ├── constants/
 │   └── index.js
 │
-├── controllers/
-│   ├── product.controller.js
-│   |── user.controller.js
-|   |── mock.controller.js
-|   ├── logger.controller.js
-│   └── order.controller.js
+|   ├── controllers/
+│       ├── product.controller.js
+│       |── user.controller.js
+|       |── mock.controller.js
+|       ├── logger.controller.js
+│       └── order.controller.js
 |   
-├── errors/
-|   ├── custom.error.js
-|   ├── error.dictionary.js
+|   ├── errors/
+|       ├── custom.error.js
+|       └── error.dictionary.js
 |
-├── middlewares/
-|   ├── error.middleware.js
+|   ├── middlewares/
+│       └── error.middlewares.js
 │
-├── models/
-│   ├── Product.js
-│   |── User.js
-|   |── Order.js
-|   └── Delivery.js
+|   ├── models/
+│       ├── Product.js
+│       |── User.js
+|       |── Order.js
+|       └── Delivery.js
 |
-├── mock/
-|   ├── user.mock.js
-|   ├── driver.mock.js
-|   ├── order.mock.js
-|   └── delivery.mock.js
+|   ├── mock/
+|       ├── user.mock.js
+|       ├── driver.mock.js
+|       ├── order.mock.js
+|       └── delivery.mock.js
 │
-├── repositories/
-│   ├── product.repository.js
-│   |── user.repository.js
-|   ├── mock.repository.js
-│   └── order.repository.js
+|   ├── repositories/
+│       ├── product.repository.js
+│       |── user.repository.js
+|       ├── mock.repository.js
+│       └── order.repository.js
 │
-├── routes/
-│   ├── product.routes.js
-│   |── user.routes.js
-|   |── mock.routes.js
-|   ├── logger.routes.js
-│   └── order.routes.js
+|   ├── routes/
+│        ├── product.routes.js
+│        |── user.routes.js
+|        |── mock.routes.js
+|        ├── logger.routes.js
+│        └── order.routes.js
 │
-├── services/
-│   ├── product.service.js
-│   |── user.service.js
-|   ├── mock.service.js
-│   └── order.service.js
+|   ├── services/
+│       ├── product.service.js
+│       |── user.service.js
+|       ├── mock.service.js
+│       └── order.service.js
 │
+├── tests/
+│   ├── setup.js
+│   ├── users/
+│   │   ├── users.test.js
+│   │   ├── document-test.png
+│   │   ├── invalid-document.txt
+│   │   └── large-document.png
+│   ├── products/
+│   │   └── products.test.js
+│   ├── orders/
+│   │   └── orders.test.js
+│   ├── mocks/
+│   │   └── mocks.test.js
+│   └── system/
+│       └── system.test.js
 ├── app.js
 └── server.js
-
-tests/
-├── setup.js
-├── users/
-│   └── users.test.js
-├── products/
-│   └── products.test.js
-├── orders/
-│   └── orders.test.js
-├── mocks/
-│   └── mocks.test.js
-└── system/
-    └── system.test.js
+|
+├── uploads/
+├── logs/
+├── .env
+├── .env.test
+├── .gitignore
+├── package.json
+└── README.md
 ```
 
-La carpeta logs/ se genera cuando Winston comienza a guardar registros. Los archivos de logs no deben subirse al repositorio.
+La carpeta uploads/ almacena los archivos cargados por los usuarios. Se generan automáticamente las subcarpetas necesarias para documentos y comprobantes.
+
+La carpeta logs/ almacena los registros generados por Winston.
+
+Las carpetas uploads/ y logs/, junto con node_modules/ y los archivos de entorno, están excluidas del repositorio mediante .gitignore.
 
 ## Instalación
 
@@ -327,7 +345,7 @@ Ejemplo:
 }
 ```
 
-Orders
+## Orders
 
 Obtener todos los pedidos:
 
@@ -359,9 +377,88 @@ Ejemplo:
   ]
 }
 
-El sistema verifica que el usuario y los productos existan, que las cantidades sean válidas y que haya stock suficiente.
+Los pedidos contienen información del usuario asociado, productos, cantidades, estado, prioridad y total.
 
-El pedido se crea con estado PENDING y prioridad MEDIUM por defecto.
+## Carga de archivos
+
+El proyecto incorpora Multer para gestionar la carga de archivos mediante solicitudes multipart/form-data.
+
+La configuración se encuentra centralizada en: src/config/upload.config.js
+
+## Configuración de carga
+
+La aplicación establece las siguientes restricciones:
+
+- Tipos de archivo permitidos: PDF, JPEG y PNG.
+- Tamaño máximo por archivo: 5 MB.
+- Cantidad máxima: un archivo por solicitud.
+- Los archivos se almacenan en el servidor.
+- Los nombres de archivo se generan mediante UUID para evitar colisiones.
+- Los archivos binarios no se almacenan directamente en MongoDB; se guarda su metadata y ubicación.
+
+## Documentos de usuarios
+
+Endpoint:
+
+POST /api/users/:id/documents
+
+Permite asociar un documento a un usuario existente.
+
+La solicitud debe enviarse utilizando multipart/form-data.
+
+Campos:
+
+Campo             Tipo           Descripción
+document          File       Archivo que se desea cargar
+documentType      Text       Tipo de documento
+
+Tipos de documento admitidos:
+
+- DNI
+- LICENSE
+- OTHER
+
+Los archivos se almacenan en: uploads/users/
+
+La información del documento se guarda asociada al usuario en MongoDB, incluyendo metadata como:
+
+- Nombre original.
+- Nombre generado.
+- Ruta del archivo.
+- Tipo MIME.
+- Tamaño.
+- Fecha de carga.
+- Tipo de documento.
+
+## Comprobantes de pedidos
+
+Endpoint: POST /api/orders/:id/receipts
+
+Permite asociar un comprobante a un pedido existente.
+
+La solicitud debe enviarse utilizando multipart/form-data.
+
+Campo:
+
+Campo            Tipo        Descripción
+receipt          File    Comprobante que se desea cargar
+
+Los archivos se almacenan en: uploads/receipts/
+
+La metadata del comprobante queda asociada al pedido correspondiente en MongoDB.
+
+## Validaciones de archivos
+
+El sistema contempla las siguientes validaciones:
+
+- Verificar que se haya enviado un archivo.
+- Verificar que el tipo MIME esté permitido.
+- Controlar el tamaño máximo.
+- Verificar que el usuario o pedido exista.
+- Validar el tipo de documento cuando corresponda.
+- Manejar los errores generados por Multer.
+
+Cuando ocurre un error durante el proceso, el sistema contempla la limpieza de los archivos temporales o cargados que no pudieron asociarse correctamente al recurso.
 
 ## Mocking y carga de datos de prueba
 
@@ -416,11 +513,7 @@ Generar entregas
 GET /api/mocks/deliveries?qty=2
 ```
 
-Genera entregas simuladas asociadas a:
-
-* Un pedido.
-* Un repartidor.
-* Un estado de entrega.
+Genera entregas simuladas asociadas a un pedido, un repartidor y un estado de entrega.
 
 Las entregas generadas mediante este endpoint no se guardan en MongoDB.
 
@@ -446,35 +539,7 @@ El seed genera y guarda:
 
 Las relaciones entre los registros se generan automáticamente.
 
-Por ejemplo:
-
-Usuario
-   ↓
-Pedido
-   ↓
-Entrega
-   ↓
-Repartidor
-
-A diferencia de los endpoints GET de mocking, el endpoint POST /api/mocks/seed sí persiste los datos en MongoDB.
-
-Ejemplo:
-
-Respuesta esperada:
-
-{
-        "message": "Datos de prueba cargados correctamente",
-        "cantidad": 2,
-        "data": {
-        "users": [],
-        "drivers": [],
-        "products": [],
-        "orders": [],
-        "deliveries": []
-        }
-}
-
-Los arrays contienen los registros realmente creados en MongoDB.
+A diferencia de los endpoints GET de mocking, el endpoint POST de seed sí persiste los datos en MongoDB.
 
 ## Validación del parámetro qty
 
@@ -548,6 +613,8 @@ INVALID_DATA            400           Datos enviados no válidos
 
 MOCK_SEED_ERROR         500           Error al cargar datos de prueba
 
+Los errores específicos pueden variar según la operación y las validaciones que se ejecuten.
+
 ## Errores de Mongoose
 
 El middleware también transforma determinados errores de Mongoose en respuestas uniformes.
@@ -558,23 +625,27 @@ Se manejan:
 - CastError: identificadores o datos con formato inválido.
 - E11000: intento de insertar un dato duplicado.
 
-Estos errores se responden como:
+Estos errores se responden con el código INVALID_DATA cuando corresponde.
 
-{
-        "status": "error",
-        "code": "INVALID_DATA",
-        "message": "Los datos enviados no son válidos"
-}
+## Errores de Multer
+
+El middleware global contempla los errores generados durante la carga de archivos.
+
+Entre ellos:
+
+- LIMIT_FILE_SIZE: archivo que supera el tamaño máximo permitido.
+- LIMIT_UNEXPECTED_FILE: nombre de campo inesperado.
+- LIMIT_FILE_COUNT: cantidad de archivos superior a la permitida.
+
+De esta manera, los errores de carga también mantienen una respuesta JSON uniforme.
 
 Ruta inexistente
 
-Las rutas que no existen también utilizan el sistema centralizado de errores.
+Las rutas que no existen utilizan el sistema centralizado de errores.
 
-Por ejemplo:
+Por ejemplo: GET /api/esto-no-existe
 
-GET /api/esto-no-existe
-
-devuelve:
+Devuelve una respuesta HTTP 404:
 
 {
         "status": "error",
@@ -591,6 +662,8 @@ El logger se integra con:
 - la conexión a MongoDB 
 - el servicio de carga de datos mock  
 - el middleware global de errores.
+- Carga exitosa de documentos de usuarios.
+- Asociación exitosa de comprobantes a pedidos.
 
 ## Niveles de logging
 
@@ -608,7 +681,7 @@ warning       Situaciones inesperadas o datos inválidos
 
 error         Errores que requieren atención
 
-fatal         Fallas críticas que pueden impedir el funcionamiento de la aplicación
+fatal         Fallas críticas que pueden impedir el funcionamiento
 
 ## Comportamiento según el entorno
 
@@ -618,7 +691,7 @@ El logger distingue entre desarrollo y producción mediante la variable NODE_ENV
 - Producción: la consola muestra los niveles desde info.
 - Archivos: el archivo general conserva los registros desde debug, mientras que el archivo de errores conserva únicamente los niveles error y fatal.
 
-Los registros incluyen fecha, nivel y mensaje. Cuando se registra un objeto de error compatible, también puede incluirse su stack trace.
+Los registros incluyen fecha, nivel y mensaje.
 
 ## Archivos de logs
 
@@ -630,14 +703,7 @@ Para comprobar los niveles de logging se dispone de un endpoint de prueba:
 
 GET /api/logger/test
 
-La ruta ejecuta registros de prueba de los seis niveles:
-
-- debug
-- http
-- info
-- warning
-- error
-- fatal
+La ruta ejecuta registros de prueba de los seis niveles.
 
 Si la solicitud se procesa correctamente, devuelve una respuesta similar a:
 
@@ -645,8 +711,6 @@ Si la solicitud se procesa correctamente, devuelve una respuesta similar a:
         "status": "success",
         "message": "Se registraron pruebas de todos los niveles de logging"
 }
-
-Este endpoint permite verificar que Winston genere los mensajes correspondientes en la consola y en los archivos de registro. Los mensajes error y fatal también deben aparecer en el archivo exclusivo de errores.
 
 ## Integracion con el middleware global
 
@@ -752,7 +816,23 @@ Mock Repository
         ↓
 MongoDB
 
-Cada capa tiene una responsabilidad específica, evitando mezclar lógica HTTP, lógica de negocio y acceso a datos.
+Flujo de carga de archivos
+
+Para cargar un dicumento de usuario:
+
+POST /api/users/:id/documents
+        ↓
+Multer
+        ↓
+User Controller
+        ↓
+User Service
+        ↓
+User Repository
+        ↓
+MongoDB
+
+El archivo se almacena en el sistema de archivos y su metadata se asocia al usuario en MongoDB.
 
 ## Testing
 
@@ -789,7 +869,9 @@ MONGODB_URI=mongodb://127.0.0.1:27017/shipnow_test
 
 Es necesario tener MongoDB instalado y en ejecución.
 
-La configuración de testing verifica que la conexión corresponda a la base de datos `shipnow_test`. Al finalizar las pruebas, se eliminan los datos generados y se cierra la conexión.
+La configuración de testing verifica que la conexión corresponda a la base de datos `shipnow_test`. 
+
+Al finalizar las pruebas, se eliminan los datos generados y se cierra la conexión.
 
 ### Módulos cubiertos
 
@@ -802,11 +884,20 @@ Las pruebas funcionales verifican:
 - **Logger:** funcionamiento del endpoint de prueba de logging.
 - **Swagger:** disponibilidad de la documentación de la API.
 - **Manejo de errores:** respuestas para recursos inexistentes y rutas no encontradas.
-
-Actualmente, el proyecto cuenta con 30 pruebas funcionales que verifican los principales endpoints y sus respuestas exitosas y de error.
+- **Carga de Documentos:** carga exitosa, archivo obligatorio, tipo de documento, tipo de archivo y usuario inexistente.
+- **Carga de comprobantes:** carga exitosa, archivo obligatorio y pedido inexistente.
+- **Validaciones de Multer:** tipo de archivo no permitido, tamaño máximo y nombre de campo incorrecto.
 
 ### Organización de las pruebas
 
 Las pruebas se encuentran dentro de la carpeta `tests/`, organizadas por módulo y recurso.
 
-La configuración compartida se encuentra en tests/setup.js, donde se establece la conexión con la base de datos de testing y se realiza la limpieza al finalizar la ejecución.
+La carpeta tests/users/ también contiene archivos de prueba utilizados para verificar la carga de documentos y las validaciones de archivos.
+
+### Resultado de las pruebas
+
+Actualmente, el proyecto cuenta con 40 pruebas funcionales.
+
+Las pruebas contemplan tanto casos exitosos como situaciones de error esperadas, verificando el comportamiento de los endpoints y el manejo centralizado de errores.
+
+Para ejecutar nuevamente la suite: npm test

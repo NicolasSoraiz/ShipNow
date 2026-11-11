@@ -1,5 +1,6 @@
 const express = require("express");
 const userController = require("../controllers/user.controller");
+const { upload } = require("../config/upload.config");
 
 const router = express.Router();
 
@@ -117,5 +118,52 @@ router.get("/:id", userController.getById);
  *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.post("/", userController.create);
+
+/**
+ * @swagger
+ * /api/users/{id}/documents:
+ *   post:
+ *     summary: Cargar un documento de un usuario
+ *     tags: [Users]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: Identificador MongoDB del usuario
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - document
+ *               - documentType
+ *             properties:
+ *               document:
+ *                 type: string
+ *                 format: binary
+ *                 description: Archivo PDF, JPG o PNG (máximo 5 MB)
+ *               documentType:
+ *                 type: string
+ *                 enum: [DNI, LICENSE, OTHER]
+ *                 example: DNI
+ *     responses:
+ *       200:
+ *         description: Documento cargado correctamente
+ *       400:
+ *         description: Archivo faltante, tipo inválido o tamaño excedido
+ *       404:
+ *         description: Usuario no encontrado
+ *       500:
+ *         description: Error interno del servidor
+ */
+router.post(
+    "/:id/documents",
+    upload.single("document"),
+    userController.uploadDocument
+);
 
 module.exports = router;
