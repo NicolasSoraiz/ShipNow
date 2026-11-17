@@ -9,8 +9,8 @@ const fs = require("fs/promises");
 
 class OrderService {
 
-    async getAll() {
-        return orderRepository.getAll();
+    async getAll(page = 1, limit = 10) {
+        return orderRepository.getAll(page, limit);
     }
 
     async getById(id) {

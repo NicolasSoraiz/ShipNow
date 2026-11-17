@@ -98,8 +98,11 @@ describe("Pruebas funcionales - Pedidos", function () {
             const response = await request(app).get("/api/orders");
 
             expect(response.status).to.equal(200);
-            expect(response.body).to.be.an("array");
-            expect(response.body.length).to.be.greaterThan(0);
+            expect(response.body).to.have.property("status", "success");
+            expect(response.body).to.have.property("results");
+            expect(response.body).to.have.property("pagination");
+            expect(response.body.data).to.be.an("array");
+            expect(response.body.data.length).to.be.greaterThan(0);
         });
     });
 

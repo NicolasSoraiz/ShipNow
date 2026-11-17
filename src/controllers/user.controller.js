@@ -3,11 +3,24 @@ const userService = require("../services/user.service");
 class UserController {
     async getAll(req, res, next) {
         try {
-            const users = await userService.getAll();
+            const page = Math.max(1, parseInt(req.query.page) || 1);
+            const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 10));
 
-            return res.status(200).json(users);
+            const result = await userService.getAll(page, limit);
+
+            res.status(200).json({
+                status: "success",
+                results: result.users.length,
+                pagination: {
+                    page: result.page,
+                    limit: result.limit,
+                    totalPages: result.totalPages,
+                    totalResults: result.totalResults
+                },
+                data: result.users
+            });
         } catch (error) {
-            return next(error);
+            next(error);
         }
     }
 

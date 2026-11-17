@@ -1,14 +1,26 @@
 const orderService = require("../services/order.service");
 
 class OrderController {
-
     async getAll(req, res, next) {
         try {
-            const orders = await orderService.getAll();
+            const page = Math.max(1, parseInt(req.query.page) || 1);
+            const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 10));
 
-            return res.status(200).json(orders);
+            const result = await orderService.getAll(page, limit);
+
+            res.status(200).json({
+                status: "success",
+                results: result.orders.length,
+                pagination: {
+                    page: result.page,
+                    limit: result.limit,
+                    totalPages: result.totalPages,
+                    totalResults: result.totalResults
+                },
+                data: result.orders
+            });
         } catch (error) {
-            return next(error);
+            next(error);
         }
     }
 

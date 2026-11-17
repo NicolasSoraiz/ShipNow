@@ -22,6 +22,7 @@ La aplicación utiliza una arquitectura por capas para separar las responsabilid
 * Chai
 * Supertest
 * Cross-env
+* Docker
 
 ## Arquitectura
 
@@ -162,16 +163,21 @@ De esta forma, el Service no necesita conocer cómo se realizan las consultas a 
 │   │   └── mocks.test.js
 │   └── system/
 │       └── system.test.js
+|
+├── .dockerignore
+├── .env.example
+├── .gitignore
+├── Dockerfile
+├── package.json
+├── package-lock.json
+└── README.md
 ├── app.js
 └── server.js
-|
+
 ├── uploads/
 ├── logs/
 ├── .env
 ├── .env.test
-├── .gitignore
-├── package.json
-└── README.md
 ```
 
 La carpeta uploads/ almacena los archivos cargados por los usuarios. Se generan automáticamente las subcarpetas necesarias para documentos y comprobantes.
@@ -181,6 +187,15 @@ La carpeta logs/ almacena los registros generados por Winston.
 Las carpetas uploads/ y logs/, junto con node_modules/ y los archivos de entorno, están excluidas del repositorio mediante .gitignore.
 
 ## Instalación
+
+# Requisitos previos
+
+Para ejecutar el proyecto localmente se necesita:
+
+- Node.js.
+- npm.
+- MongoDB.
+- Git.
 
 Clonar el repositorio y acceder a la carpeta del proyecto.
 
@@ -192,21 +207,47 @@ npm install
 
 ## Variables de entorno
 
+El proyecto utiliza variables de entorno para configurar la aplicación según el entorno de ejecución.
+
+Se incluye un archivo .env.example como referencia para crear la configuración local.
+
 Crear un archivo `.env` en la raíz del proyecto.
 
 Ejemplo:
 
 ```env
-PORT=3000
-MONGODB_URI=mongodb://localhost:27017/shipnow
 NODE_ENV=development
+PORT=3000
+MONGODB_URI=mongodb://127.0.0.1:27017/shipnow
+LOG_LEVEL=debug
 ```
+
+# Variables disponibles
+
+Variable         Descripción
+
+NODE_ENV      Entorno de ejecución: development, test o production
+
+PORT          Puerto en el que se inicia el servidor
+
+MONGODB_URI   Dirección de conexión a MongoDB
+
+LOG_LEVEL     Nivel mínimo de logging
+
+La aplicación valida las variables requeridas al iniciar.
+
+Se verifica que:
+
+- Existan las variables obligatorias.
+- NODE_ENV corresponda a un entorno permitido.
+- PORT sea un número entero entre 1 y 65535.
+- LOG_LEVEL, cuando se especifica, corresponda a un nivel admitido.
+
+Si la configuración es inválida, el servidor no inicia correctamente.
 
 El archivo .env contiene la configuración local de la aplicación y no debe subirse al repositorio.
 
-Las variables de entorno se validan al iniciar la aplicación. Si falta una variable requerida o su configuración es inválida, el servidor no debería iniciar correctamente.
-
-## Ejecución
+## Ejecución local
 
 Para iniciar la aplicación:
 
@@ -220,7 +261,39 @@ El servidor se ejecutará en:
 http://localhost:3000
 ```
 
-La aplicación requiere que MongoDB esté ejecutándose localmente.
+La aplicación requiere que MongoDB esté funcionando y que la variable MONGODB_URI apunte a una base de datos disponible.
+
+## Health Check
+
+ShipNow incorpora un endpoint para comprobar que la aplicación se encuentra respondiendo correctamente.
+
+Endpoint:
+
+GET /health
+
+URL local:
+
+http://localhost:3000/health
+
+La respuesta incluye:
+
+- Estado de la aplicación.
+- Mensaje de funcionamiento.
+- Entorno de ejecución.
+- Tiempo de actividad del proceso.
+- Fecha y hora de la respuesta.
+
+Ejemplo:
+
+{
+        "status": "success",
+        "message": "ShipNow API funcionando correctamente",
+        "environment": "development",
+        "uptime": 120.5,
+        "timestamp": "2026-11-17T14:28:08.525Z"
+}
+
+Este endpoint verifica que la aplicación Express responde correctamente. No realiza una comprobación independiente de la disponibilidad de MongoDB.
 
 ## Documentación de la API con Swagger
 
@@ -228,33 +301,11 @@ ShipNow utiliza Swagger para documentar y explorar los endpoints de su API REST.
 
 ### Acceso a Swagger UI
 
-Con el servidor iniciado, abrir:
+Con el servidor iniciado en un entorno distinto de producción, abrir:
 
 http://localhost:3000/api/docs
 
 Desde esta interfaz se pueden consultar los endpoints documentados, sus parámetros, los cuerpos de las solicitudes y las respuestas previstas.
-
-### Cómo iniciar el servidor
-
-1. Instalar las dependencias:
-
-   ```bash
-   npm install
-   ```
-
-2. Configurar las variables de entorno en el archivo `.env`.
-
-3. Verificar que MongoDB esté funcionando.
-
-4. Iniciar la aplicación:
-
-   ```bash
-   npm start
-   ```
-
-5. Abrir en el navegador:
-
-   http://localhost:3000/api/docs
 
 ### Organización de la documentación
 
@@ -379,6 +430,43 @@ Ejemplo:
 
 Los pedidos contienen información del usuario asociado, productos, cantidades, estado, prioridad y total.
 
+# Paginacion
+
+Los endpoints de usuarios y pedidos incorporan paginación para optimizar la consulta de colecciones grandes.
+
+Se utilizan dos parámetros opcionales:
+
+Parámetro             Descripción                Valor predeterminado
+
+page             Número de página solicitada              1
+
+limit        Cantidad máxima de resultados por página    10
+
+El límite máximo permitido es de 100 registros por página.
+
+Ejemplo:
+
+GET /api/users?page=1&limit=10
+
+GET /api/orders?page=2&limit=5
+
+La respuesta incluye información sobre los resultados y la paginación:
+
+{
+        "status": "success",
+        "results": 10,
+        "pagination": {
+        "page": 1,
+        "limit": 10,
+        "totalPages": 2
+},
+"data": []
+}
+
+El campo data contiene los registros correspondientes a la página solicitada.
+
+La paginación se implementa en los repositories mediante consultas con skip, limit y conteo de documentos.
+
 ## Carga de archivos
 
 El proyecto incorpora Multer para gestionar la carga de archivos mediante solicitudes multipart/form-data.
@@ -452,7 +540,7 @@ La metadata del comprobante queda asociada al pedido correspondiente en MongoDB.
 El sistema contempla las siguientes validaciones:
 
 - Verificar que se haya enviado un archivo.
-- Verificar que el tipo MIME esté permitido.
+- Verificar que el tipo de archivo esté permitido.
 - Controlar el tamaño máximo.
 - Verificar que el usuario o pedido exista.
 - Validar el tipo de documento cuando corresponda.
@@ -543,21 +631,15 @@ A diferencia de los endpoints GET de mocking, el endpoint POST de seed sí persi
 
 ## Validación del parámetro qty
 
-Los endpoints de mocking validan que qty sea un número entero mayor que cero.
+Los endpoints de mocking validan que qty sea un número entero mayor que cero y que no supere el máximo de 100.
 
 Por ejemplo:
 
 ```http
-GET /api/mocks/users?qty=-2
+GET /api/mocks/users?qty=-101
 ```
 
-devuelve un error 400 Bad Request con el formato general de errores:
-
-{
-        "status": "error",
-        "code": "INVALID_MOCK_QUANTITY",
-        "message": "qty debe ser un número entero mayor que 0"
-}
+Devuelve un error HTTP 400 con el código INVALID_MOCK_QUANTITY.
 
 ## Manejo centralizado de errores
 
@@ -658,6 +740,7 @@ Devuelve una respuesta HTTP 404:
 ShipNow utiliza Winston para centralizar el registro de eventos, errores y mensajes relevantes de la aplicación.
 
 El logger se integra con:
+
 - el inicio del servidor 
 - la conexión a MongoDB 
 - el servicio de carga de datos mock  
@@ -688,10 +771,12 @@ fatal         Fallas críticas que pueden impedir el funcionamiento
 El logger distingue entre desarrollo y producción mediante la variable NODE_ENV.
 
 - Desarrollo (development): la consola muestra los niveles desde debug.
-- Producción: la consola muestra los niveles desde info.
-- Archivos: el archivo general conserva los registros desde debug, mientras que el archivo de errores conserva únicamente los niveles error y fatal.
+- Producción (production): la consola muestra los niveles desde info.
+- Testing (test): utiliza info como nivel predeterminado.
 
-Los registros incluyen fecha, nivel y mensaje.
+La variable LOG_LEVEL permite configurar el nivel mínimo de logging.
+
+Los registros se guardan en archivos mediante Winston y Winston-Daily-Rotate-File.
 
 ## Archivos de logs
 
@@ -711,6 +796,8 @@ Si la solicitud se procesa correctamente, devuelve una respuesta similar a:
         "status": "success",
         "message": "Se registraron pruebas de todos los niveles de logging"
 }
+
+Este endpoint está disponible únicamente fuera del entorno de producción.
 
 ## Integracion con el middleware global
 
@@ -896,8 +983,128 @@ La carpeta tests/users/ también contiene archivos de prueba utilizados para ver
 
 ### Resultado de las pruebas
 
-Actualmente, el proyecto cuenta con 40 pruebas funcionales.
+Actualmente, el proyecto cuenta con 40 pruebas funcionales aprobadas.
 
 Las pruebas contemplan tanto casos exitosos como situaciones de error esperadas, verificando el comportamiento de los endpoints y el manejo centralizado de errores.
 
 Para ejecutar nuevamente la suite: npm test
+
+### Configuración para producción
+
+ShipNow contempla diferentes comportamientos según el entorno configurado mediante NODE_ENV.
+
+Los entornos admitidos son:
+
+- development
+- test
+- production
+
+En producción se mantienen disponibles los endpoints principales de la API y el health check.
+
+Por razones de seguridad, las siguientes rutas se deshabilitan cuando NODE_ENV=production:
+
+Ruta              Función
+
+/api/mocks    Generación de datos simulados y seed
+
+/api/logger     Pruebas de niveles de logging
+
+/api/docs          Documentación Swagger
+
+Cuando se intenta acceder a estas rutas en producción, la aplicación devuelve un error HTTP 404 con código ROUTE_NOT_FOUND.
+
+Los endpoints de usuarios, productos y pedidos permanecen disponibles.
+
+## Docker
+
+ShipNow incorpora Docker para facilitar la construcción y ejecución de la API en un contenedor independiente.
+
+Requisitos previos
+
+- Docker Desktop o Docker Engine.
+- MongoDB accesible desde el contenedor.
+
+# Construir la imagen
+
+Desde la carpeta raíz del proyecto, ejecutar:
+
+docker build -t shipnow-api .
+
+Este comando construye una imagen llamada shipnow-api.
+
+# Ejecutar el contenedor
+
+Si MongoDB se encuentra instalado y ejecutándose en la máquina Windows anfitriona, se puede utilizar host.docker.internal para permitir la conexión desde el contenedor.
+
+Ejecutar:
+
+docker run -d --name shipnow-container -p 3000:3000 -e NODE_ENV=production -e PORT=3000 -e MONGODB_URI="mongodb://host.docker.internal:27017/shipnow" -e LOG_LEVEL=info shipnow-api
+
+Las variables de entorno se proporcionan externamente al contenedor.
+
+# Verificar el contenedor
+
+Para comprobar que el contenedor se encuentra en ejecución:
+
+docker ps
+
+Para consultar los registros:
+
+docker logs shipnow-container
+
+# Comprobar el funcionamiento de la API
+
+Una vez iniciado el contenedor, abrir:
+
+http://localhost:3000/health
+
+También se puede comprobar el acceso a los productos:
+
+http://localhost:3000/api/products
+
+# Detener el contenedor
+
+Para detener la aplicación:
+
+docker stop shipnow-container
+
+Para eliminar el contenedor detenido:
+
+docker rm shipnow-container
+
+La imagen permanece disponible aunque se elimine el contenedor.
+
+# Archivos excluidos de Docker
+
+El archivo .dockerignore evita incorporar a la imagen:
+
+- node_modules/
+- .env
+- .env.test
+- .git/
+- logs/
+- uploads/
+- Archivos temporales y de cobertura.
+
+Las variables de entorno se configuran al ejecutar el contenedor y no se incorporan a la imagen.
+
+Los archivos generados durante la ejecución del contenedor, como uploads y logs, no tienen persistencia configurada por defecto. Para conservarlos al recrear el contenedor, es necesario configurar volúmenes de Docker.
+
+# Seguridad y buenas prácticas
+
+El proyecto contempla las siguientes medidas:
+
+- Separación de entornos de desarrollo, testing y producción.
+- Uso de variables de entorno para información de configuración.
+- Exclusión de archivos sensibles mediante .gitignore y .dockerignore.
+- Validación de variables de entorno al iniciar la aplicación.
+- Límite de tamaño y tipos permitidos en la carga de archivos.
+- Límite de cantidad de registros generados mediante mocks.
+- Paginación para consultas de usuarios y pedidos.
+- Deshabilitación de herramientas de desarrollo en producción.
+- Manejo centralizado de errores.
+- Separación de responsabilidades mediante arquitectura por capas.
+
+### Autor
+
+Proyecto desarrollado como parte de la formación en desarrollo Backend, utilizando Node.js, Express, MongoDB y herramientas de testing y escalabilidad.

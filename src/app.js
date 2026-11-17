@@ -14,12 +14,28 @@ const app = express();
 
 app.use(express.json());
 
+app.get("/health", (req, res) => {
+    res.status(200).json({
+        status: "success",
+        message: "ShipNow API funcionando correctamente",
+        environment: process.env.NODE_ENV,
+        uptime: process.uptime(),
+        timestamp: new Date().toISOString()
+    });
+});
+
 app.use("/api/products", productRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/orders", orderRoutes);
-app.use("/api/mocks", mockRoutes);
-app.use("/api/logger", loggerRoutes);
-app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+if (process.env.NODE_ENV !== "production") {
+    app.use("/api/mocks", mockRoutes);
+}
+if (process.env.NODE_ENV !== "production") {
+    app.use("/api/logger", loggerRoutes);
+}
+if (process.env.NODE_ENV !== "production") {
+    app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+}
 
 app.use((req, res, next) => {
     const error = new CustomError(

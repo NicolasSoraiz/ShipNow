@@ -8,8 +8,8 @@ const logger = require("../config/logger");
 const ALLOWED_DOCUMENT_TYPES = ["DNI", "LICENSE", "OTHER"];
 
 class UserService {
-    async getAll() {
-        return userRepository.getAll();
+    async getAll(page = 1, limit = 10) {
+        return userRepository.getAll(page, limit);
     }
 
     async getUserById(id) {

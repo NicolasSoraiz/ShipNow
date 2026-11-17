@@ -2,10 +2,11 @@ const mockService = require("../services/mock.service");
 const CustomError = require("../errors/custom.error");
 const ERROR_DICTIONARY = require("../errors/error.dictionary");
 
+
 const validateQty = (value) => {
     const qty = Number(value);
 
-    if (!Number.isInteger(qty) || qty <= 0) {
+    if (!Number.isInteger(qty) || qty <= 0 || qty > 100) {
         const error = ERROR_DICTIONARY.INVALID_MOCK_QUANTITY;
 
         throw new CustomError(

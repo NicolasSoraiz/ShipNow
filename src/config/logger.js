@@ -24,7 +24,14 @@ const colors = {
 winston.addColors(colors);
 
 const environment = process.env.NODE_ENV || "development";
-const isDevelopment = environment === "development";
+
+const defaultLogLevel = environment === "development" ? "debug" : "info";
+
+const configuredLogLevel = process.env.LOG_LEVEL || defaultLogLevel;
+
+if (!Object.prototype.hasOwnProperty.call(levels, configuredLogLevel)) {
+    throw new Error(`LOG_LEVEL inválido: ${configuredLogLevel}`);
+}
 
 const logFormat = printf(({ timestamp, level, message, stack }) => {
     return `${timestamp} [${level}] ${stack || message}`;
@@ -32,7 +39,7 @@ const logFormat = printf(({ timestamp, level, message, stack }) => {
 
 const logger = winston.createLogger({
     levels,
-    level: isDevelopment ? "debug" : "info",
+    level: configuredLogLevel,
     format: combine(
         errors({ stack: true }),
         timestamp({ format: "YYYY-MM-DD HH:mm:ss" }),
@@ -40,7 +47,7 @@ const logger = winston.createLogger({
     ),
     transports: [
         new winston.transports.Console({
-            level: isDevelopment ? "debug" : "info",
+            level: configuredLogLevel,
             format: combine(
                 colorize(),
                 timestamp({ format: "YYYY-MM-DD HH:mm:ss" }),
@@ -54,7 +61,7 @@ const logger = winston.createLogger({
             datePattern: "YYYY-MM-DD",
             maxSize: "10m",
             maxFiles: "14d",
-            level: "debug"
+            level: configuredLogLevel
         }),
 
         new DailyRotateFile({
