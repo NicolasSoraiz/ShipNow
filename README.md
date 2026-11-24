@@ -90,7 +90,6 @@ De esta forma, el Service no necesita conocer cómo se realizan las consultas a 
 ├── src/
 │   ├── app.js
 │   ├── server.js
-│    
 |   ├── config/
 |       ├── database.js
 │       ├── env.config.js
@@ -99,71 +98,60 @@ De esta forma, el Service no necesita conocer cómo se realizan las consultas a 
 |       ├── swagger.js
 |       └── swagger/
 |           └── schemas.js
-│     
 |   ├── constants/
-│   └── index.js
-│
+│       └── index.js
 |   ├── controllers/
 │       ├── product.controller.js
 │       |── user.controller.js
 |       |── mock.controller.js
 |       ├── logger.controller.js
 │       └── order.controller.js
-|   
 |   ├── errors/
 |       ├── custom.error.js
 |       └── error.dictionary.js
-|
 |   ├── middlewares/
 │       └── error.middlewares.js
-│
+|   ├── mock/
+│       ├── delivery.mock.js
+│       |── driver.mock.js
+|       |── order.mock.js
+|       └── user.mock.js
 |   ├── models/
-│       ├── Product.js
-│       |── User.js
+│       ├── product.js
+│       |── user.js
 |       |── Order.js
 |       └── Delivery.js
-|
-|   ├── mock/
-|       ├── user.mock.js
-|       ├── driver.mock.js
-|       ├── order.mock.js
-|       └── delivery.mock.js
-│
 |   ├── repositories/
 │       ├── product.repository.js
 │       |── user.repository.js
 |       ├── mock.repository.js
 │       └── order.repository.js
-│
 |   ├── routes/
 │        ├── product.routes.js
 │        |── user.routes.js
 |        |── mock.routes.js
 |        ├── logger.routes.js
 │        └── order.routes.js
-│
 |   ├── services/
 │       ├── product.service.js
 │       |── user.service.js
 |       ├── mock.service.js
 │       └── order.service.js
-│
 ├── tests/
 │   ├── setup.js
 │   ├── users/
-│   │   ├── users.test.js
-│   │   ├── document-test.png
-│   │   ├── invalid-document.txt
-│   │   └── large-document.png
+│       ├── users.test.js
+│       ├── document-test.png
+│       ├── invalid-document.txt
+│       ├── large-document.png
 │   ├── products/
-│   │   └── products.test.js
+│       └── products.test.js
 │   ├── orders/
-│   │   └── orders.test.js
+│       └── orders.test.js
 │   ├── mocks/
-│   │   └── mocks.test.js
+│       └── mocks.test.js
 │   └── system/
 │       └── system.test.js
-|
 ├── .dockerignore
 ├── .env.example
 ├── .gitignore
@@ -171,13 +159,6 @@ De esta forma, el Service no necesita conocer cómo se realizan las consultas a 
 ├── package.json
 ├── package-lock.json
 └── README.md
-├── app.js
-└── server.js
-
-├── uploads/
-├── logs/
-├── .env
-├── .env.test
 ```
 
 La carpeta uploads/ almacena los archivos cargados por los usuarios. Se generan automáticamente las subcarpetas necesarias para documentos y comprobantes.
@@ -432,7 +413,7 @@ Los pedidos contienen información del usuario asociado, productos, cantidades, 
 
 # Paginacion
 
-Los endpoints de usuarios y pedidos incorporan paginación para optimizar la consulta de colecciones grandes.
+Los endpoints de usuarios, productos y pedidos incorporan paginación para optimizar la consulta de colecciones grandes.
 
 Se utilizan dos parámetros opcionales:
 
@@ -721,6 +702,23 @@ Entre ellos:
 
 De esta manera, los errores de carga también mantienen una respuesta JSON uniforme.
 
+## Tamaño máximo del cuerpo JSON
+
+La aplicación limita el tamaño de las solicitudes JSON a 100 KB mediante el middleware de Express.
+
+Cuando una solicitud supera ese límite, devuelve:
+
+- Código HTTP: 413 Payload Too Large.
+- Código de error: PAYLOAD_TOO_LARGE.
+
+Ejemplo:
+
+{
+        "status": "error",
+        "code": "PAYLOAD_TOO_LARGE",
+        "message": "El cuerpo de la solicitud supera el tamaño máximo permitido"
+}
+
 Ruta inexistente
 
 Las rutas que no existen utilizan el sistema centralizado de errores.
@@ -983,7 +981,7 @@ La carpeta tests/users/ también contiene archivos de prueba utilizados para ver
 
 ### Resultado de las pruebas
 
-Actualmente, el proyecto cuenta con 40 pruebas funcionales aprobadas.
+Actualmente, el proyecto cuenta con 43 pruebas funcionales aprobadas.
 
 Las pruebas contemplan tanto casos exitosos como situaciones de error esperadas, verificando el comportamiento de los endpoints y el manejo centralizado de errores.
 
@@ -1038,23 +1036,40 @@ Si MongoDB se encuentra instalado y ejecutándose en la máquina Windows anfitri
 
 Ejecutar:
 
-docker run -d --name shipnow-container -p 3000:3000 -e NODE_ENV=production -e PORT=3000 -e MONGODB_URI="mongodb://host.docker.internal:27017/shipnow" -e LOG_LEVEL=info shipnow-api
+docker run -d \
+        --name shipnow-container \
+        -p 3000:3000 \
+        -e NODE_ENV=production \
+        -e PORT=3000 \
+        -e MONGODB_URI=mongodb://host.docker.internal:27017/shipnow \
+        -e LOG_LEVEL=info \
+        shipnow-api
 
 Las variables de entorno se proporcionan externamente al contenedor.
 
+# Seguridad de la imagen
+
+El Dockerfile contempla las siguientes medidas:
+
+- Utiliza node:22-alpine como imagen base.
+- Instala dependencias de producción mediante npm ci --omit=dev.
+- Ejecuta la aplicación con el usuario no privilegiado node.
+- Prepara las carpetas necesarias para archivos y logs.
+- Incorpora un HEALTHCHECK que consulta el endpoint /health.
+
 # Verificar el contenedor
 
-Para comprobar que el contenedor se encuentra en ejecución:
+Para comprobar que el contenedor se encuentra en ejecución: docker ps
 
-docker ps
+Para consultar los registros: docker logs shipnow-container
 
-Para consultar los registros:
+Para verificar el usuario de ejecución: docker exec shipnow-container whoami
 
-docker logs shipnow-container
+El resultado esperado es: node
 
 # Comprobar el funcionamiento de la API
 
-Una vez iniciado el contenedor, abrir:
+Una vez iniciado el contenedor, consultar:
 
 http://localhost:3000/health
 
@@ -1064,13 +1079,9 @@ http://localhost:3000/api/products
 
 # Detener el contenedor
 
-Para detener la aplicación:
+Para detener la aplicación: docker stop shipnow-container
 
-docker stop shipnow-container
-
-Para eliminar el contenedor detenido:
-
-docker rm shipnow-container
+Para eliminar el contenedor detenido: docker rm shipnow-container
 
 La imagen permanece disponible aunque se elimine el contenedor.
 
@@ -1084,7 +1095,10 @@ El archivo .dockerignore evita incorporar a la imagen:
 - .git/
 - logs/
 - uploads/
-- Archivos temporales y de cobertura.
+- coverage/
+- .nyc_output/
+- tests/
+- Archivos temporales.
 
 Las variables de entorno se configuran al ejecutar el contenedor y no se incorporan a la imagen.
 
@@ -1099,11 +1113,9 @@ El proyecto contempla las siguientes medidas:
 - Exclusión de archivos sensibles mediante .gitignore y .dockerignore.
 - Validación de variables de entorno al iniciar la aplicación.
 - Límite de tamaño y tipos permitidos en la carga de archivos.
+- Límite de tamaño del cuerpo de las solicitudes JSON.
 - Límite de cantidad de registros generados mediante mocks.
-- Paginación para consultas de usuarios y pedidos.
-- Deshabilitación de herramientas de desarrollo en producción.
-- Manejo centralizado de errores.
-- Separación de responsabilidades mediante arquitectura por capas.
+- Paginación para consultas de usuarios, productos y pedidos.
 
 ### Autor
 

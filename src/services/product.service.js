@@ -4,32 +4,30 @@ const CustomError = require("../errors/custom.error");
 const ERROR_DICTIONARY = require("../errors/error.dictionary");
 
 class ProductService {
-    async getAll() {
-        const products = await productRepository.getAll();
-
-        return products.filter((product) => product.stock > 0);
+    async getAll(page = 1, limit = 10) {
+        return productRepository.getAll(page, limit);
     }
 
     async getById(id) {
-    const product = await productRepository.getById(id);
+        const product = await productRepository.getById(id);
 
-    if (!product) {
-        const error = ERROR_DICTIONARY.PRODUCT_NOT_FOUND;
+        if (!product) {
+            const error = ERROR_DICTIONARY.PRODUCT_NOT_FOUND;
 
-        throw new CustomError(
-            error.message,
-            "PRODUCT_NOT_FOUND",
-            error.statusCode
-        );
+            throw new CustomError(
+                error.message,
+                "PRODUCT_NOT_FOUND",
+                error.statusCode
+            );
+        }
+
+        return product;
     }
-
-    return product;
-}
 
     async create(data) {
         const productData = {
-        ...data,
-        status: PRODUCT_STATUS.AVAILABLE
+            ...data,
+            status: PRODUCT_STATUS.AVAILABLE
         };
 
         return productRepository.create(productData);

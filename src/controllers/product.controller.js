@@ -3,9 +3,21 @@ const productService = require("../services/product.service");
 class ProductController {
     async getAll(req, res, next) {
         try {
-            const products = await productService.getAll();
+            const page = Math.max(1, parseInt(req.query.page) || 1);
+            const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 10));
 
-            return res.status(200).json(products);
+            const result = await productService.getAll(page, limit);
+
+            return res.status(200).json({
+                status: "success",
+                results: result.data.length,
+                pagination: {
+                    page: result.page,
+                    limit: result.limit,
+                    totalPages: result.totalPages
+                },
+                data: result.data
+            });
         } catch (error) {
             return next(error);
         }

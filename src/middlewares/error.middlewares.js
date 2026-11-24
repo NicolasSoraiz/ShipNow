@@ -5,7 +5,6 @@ const logger = require("../config/logger");
 const errorMiddleware = (error, req, res, next) => {
     const requestInfo = `${req.method} ${req.originalUrl}`;
 
-    // Errores de Multer
     if (error.name === "MulterError") {
         let errorCode = "FILE_UPLOAD_ERROR";
 
@@ -33,7 +32,6 @@ const errorMiddleware = (error, req, res, next) => {
         });
     }
 
-    // Errores de validación de Mongoose
     if (
         error.name === "ValidationError" ||
         error.name === "CastError" ||
@@ -52,7 +50,6 @@ const errorMiddleware = (error, req, res, next) => {
         });
     }
 
-    // Errores personalizados
     if (error instanceof CustomError) {
         if (error.statusCode >= 500) {
             logger.error(
@@ -71,7 +68,18 @@ const errorMiddleware = (error, req, res, next) => {
         });
     }
 
-    // Errores inesperados
+    if (error.type === "entity.too.large") {
+        logger.warning(
+            `[${requestInfo}] PAYLOAD_TOO_LARGE: El cuerpo de la solicitud supera el tamaño permitido`
+        );
+
+        return res.status(413).json({
+            status: "error",
+            code: "PAYLOAD_TOO_LARGE",
+            message: "El cuerpo de la solicitud supera el tamaño máximo permitido"
+        });
+    }
+
     logger.error(
         `[${requestInfo}] Error inesperado: ${error.stack || error.message}`
     );

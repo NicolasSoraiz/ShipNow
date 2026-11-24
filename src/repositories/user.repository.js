@@ -1,4 +1,4 @@
-const User = require("../models/User");
+const User = require("../models/user");
 
 class UserRepository {
     async getAll(page = 1, limit = 10) {

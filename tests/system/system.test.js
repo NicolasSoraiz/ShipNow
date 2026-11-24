@@ -23,6 +23,23 @@ describe("Pruebas funcionales - Sistema", function () {
         });
     });
 
+    describe("Validación del tamaño del JSON", function () {
+        it("Debe rechazar solicitudes JSON que superen los 100 KB", async function () {
+            const largePayload = {
+                data: "A".repeat(200 * 1024)
+            };
+
+            const response = await request(app)
+                .post("/api/products")
+                .send(largePayload);
+
+            expect(response.status).to.equal(413);
+            expect(response.body).to.have.property("status", "error");
+            expect(response.body).to.have.property("code", "PAYLOAD_TOO_LARGE");
+            expect(response.body).to.have.property("message");
+        });
+    });
+
     describe("Rutas inexistentes", function () {
         it("Debe devolver un error 404 con el formato estándar", async function () {
             const response = await request(app).get("/api/ruta-inexistente");
@@ -33,5 +50,4 @@ describe("Pruebas funcionales - Sistema", function () {
             expect(response.body).to.have.property("message");
         });
     });
-
 });

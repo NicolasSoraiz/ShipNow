@@ -45,20 +45,44 @@ describe("Pruebas funcionales - Productos", function () {
     });
 
     describe("GET /api/products", function () {
-
         it("Debe obtener la lista de productos disponibles", async function () {
             const response = await request(app)
                 .get("/api/products");
 
             expect(response.status).to.equal(200);
-            expect(response.body).to.be.an("array");
-            expect(response.body.length).to.be.greaterThan(0);
+            expect(response.body).to.have.property("status", "success");
+            expect(response.body).to.have.property("results");
+            expect(response.body).to.have.property("pagination");
+            expect(response.body).to.have.property("data").that.is.an("array");
 
-            response.body.forEach((product) => {
+            expect(response.body.pagination.page).to.equal(1);
+            expect(response.body.pagination.limit).to.equal(10);
+            expect(response.body.results).to.equal(response.body.data.length);
+            expect(response.body.data.length).to.be.greaterThan(0);
+
+            response.body.data.forEach((product) => {
                 expect(product.stock).to.be.greaterThan(0);
             });
         });
 
+        it("Debe permitir consultar una página específica", async function () {
+            const response = await request(app)
+                .get("/api/products?page=1&limit=2");
+
+            expect(response.status).to.equal(200);
+            expect(response.body.pagination.page).to.equal(1);
+            expect(response.body.pagination.limit).to.equal(2);
+            expect(response.body.data.length).to.be.at.most(2);
+        });
+
+        it("No debe permitir consultar más de 100 productos por página", async function () {
+            const response = await request(app)
+                .get("/api/products?limit=150");
+
+            expect(response.status).to.equal(200);
+            expect(response.body.pagination.limit).to.equal(100);
+            expect(response.body.data.length).to.be.at.most(100);
+        });
     });
 
     describe("GET /api/products/:id", function () {
